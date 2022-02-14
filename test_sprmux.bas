@@ -1,7 +1,7 @@
 include "xcb_sprmux.bas"
 
 REM init sprite
-MEMSET CWORD(192) * CWORD(64), 64, 255
+MEMSET $3000, 64, 255
 
 FOR t AS BYTE = 0 TO 15
     CALL SpriteColor(t, t)

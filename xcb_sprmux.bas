@@ -35,6 +35,7 @@ REM   0 to 15
 CONST SCRMEM                    = 1
 REM **************************************
 REM 16 / 24 / 32
+REM You must also update MAXSPR in ASM code
 CONST MAX_NUM_SPRITES           = 16
 
 REM **************************************
@@ -98,8 +99,30 @@ SUB SpriteInit() SHARED STATIC
     NEXT t
 
     ASM
-        ;Main program
-                jmp initraster
+        ;Routine to init the raster interrupt system
+initraster:
+                lda {SprPtrAddr}
+                sta irq2_sprf+1
+                lda {SprPtrAddr}+1
+                sta irq2_sprf+2
+
+                sei
+                lda #<irq1
+                sta $0314
+                lda #>irq1
+                sta $0315
+                lda #$7f                        ;CIA interrupt off
+                sta $dc0d
+                lda #$01                        ;Raster interrupt on
+                sta $d01a
+                lda $d011
+                and #%01111111                  ;High bit of interrupt position = 0
+                sta $d011
+                lda #IRQ1LINE                   ;Line where next IRQ happens
+                sta $d012
+                lda $dc0d                       ;Acknowledge IRQ (to be sure)
+                cli
+                rts
 
 IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
 MAXSPR          = 16                            ;Maximum number of sprites
@@ -299,29 +322,5 @@ ortbl:          dc.b 1
                 dc.b 64
                 dc.b 255-128
                 dc.b 128
-
-        ;Routine to init the raster interrupt system
-initraster:
-                lda {SprPtrAddr}
-                sta irq2_sprf+1
-                lda {SprPtrAddr}+1
-                sta irq2_sprf+2
-
-                sei
-                lda #<irq1
-                sta $0314
-                lda #>irq1
-                sta $0315
-                lda #$7f                        ;CIA interrupt off
-                sta $dc0d
-                lda #$01                        ;Raster interrupt on
-                sta $d01a
-                lda $d011
-                and #%01111111                  ;High bit of interrupt position = 0
-                sta $d011
-                lda #IRQ1LINE                   ;Line where next IRQ happens
-                sta $d012
-                lda $dc0d                       ;Acknowledge IRQ (to be sure)
-                cli
     END ASM
 END SUB

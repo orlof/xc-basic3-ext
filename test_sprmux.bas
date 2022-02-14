@@ -3,11 +3,11 @@ include "xcb_sprmux.bas"
 REM init sprite
 MEMSET $3000, 64, 255
 
-FOR t AS BYTE = 0 TO 15
-    CALL SpriteColor(t, t)
-    CALL SpriteAt(t, 15+9*t, 20+14*t)
-    CALL SpriteShape(t, 192)
-NEXT t
+FOR spr_nr AS BYTE = 0 TO 15
+    CALL SpriteColor(spr_nr, spr_nr)
+    CALL SpriteAt(spr_nr, 15+9*spr_nr, 20+14*spr_nr)
+    CALL SpriteShape(spr_nr, 192)
+NEXT spr_nr
 
 REM start raster interrupts
 CALL SpriteInit()

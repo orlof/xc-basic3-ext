@@ -99,7 +99,10 @@ SUB SpriteInit() SHARED STATIC
     NEXT t
 
     ASM
-        ;Routine to init the raster interrupt system
+MAXSPR          = 16                            ;Maximum number of sprites
+IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
+
+;Routine to init the raster interrupt system
 initraster:
                 lda {SprPtrAddr}
                 sta irq2_sprf+1
@@ -124,12 +127,7 @@ initraster:
                 cli
                 rts
 
-IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
-MAXSPR          = 16                            ;Maximum number of sprites
-
-
-        ;Raster interrupt 1. This is where sorting happens.
-
+;Raster interrupt 1. This is where sorting happens.
 irq1:           dec $d019                       ;Acknowledge raster interrupt
                 lda #$ff                        ;Move all sprites
                 sta $d001                       ;to the bottom to prevent
@@ -221,8 +219,7 @@ irq1_sortloop3: ldy {sortorder},x               ;Final loop:
                 ;dec $d020
                 jmp irq1_nonewsprites
 
-        ;Raster interrupt 2. This is where sprite displaying happens
-
+;Raster interrupt 2. This is where sprite displaying happens
 irq2:           dec $d019                       ;Acknowledge raster interrupt
 irq2_direct:    ldy {sprirqcounter}             ;Take next sorted sprite number
                 lda sortspry,y                  ;Take Y-coord of first new sprite

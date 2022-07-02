@@ -1,4 +1,4 @@
-include "xcb_sprmux.bas"
+include "../xcb_sprmux.bas"
 
 REM init sprite
 MEMSET $3000, 64, 255

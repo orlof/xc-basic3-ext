@@ -1,5 +1,4 @@
 'INCLUDE "lib_sysinfo.bas"
-INCLUDE "lib_hex.bas"
 
 TYPE TOD
     frac AS BYTE
@@ -64,7 +63,6 @@ SUB time_reset(hour AS BYTE, minute AS BYTE, second AS BYTE, frac AS BYTE) SHARE
 END SUB
 
 FUNCTION time_tod AS TOD() SHARED STATIC
-    LOCATE 0,18: PRINT hex(ctime.hour)
     DIM pm AS BYTE: pm = (ctime.hour AND %10000000)
     time_tod.hour = ctime.hour AND %01111111
     time_tod.hour = 10 * SHR(time_tod.hour, 4) + (time_tod.hour AND $0f)

@@ -11,7 +11,7 @@ END TYPE
 ' CIA2_TOD = $DD08
 DIM ctime AS TOD @$DD08
 
-DECLARE SUB time_sleep(jiffys AS BYTE) SHARED STATIC
+DECLARE SUB time_pause(jiffys AS BYTE) SHARED STATIC
 DECLARE SUB time_reset(hour AS BYTE, minute AS BYTE, second AS BYTE, frac AS BYTE) SHARED STATIC OVERLOAD
 DECLARE FUNCTION time_tod AS TOD() SHARED STATIC
 
@@ -44,7 +44,7 @@ skip_add:
     END ASM
 END FUNCTION
 
-SUB time_sleep(jiffys AS BYTE) SHARED STATIC
+SUB time_pause(jiffys AS BYTE) SHARED STATIC
     DIM end_time AS LONG
     end_time = ti() + jiffys
     DO WHILE ti() < end_time

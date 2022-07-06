@@ -24,7 +24,7 @@ REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to address specified by 
 REM given pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
 REM ****************************************************************************
-DECLARE SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS BYTE) SHARED STATIC
+DECLARE SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
 
 REM ****************************************************************************
 REM Following methods set and get sprite properties

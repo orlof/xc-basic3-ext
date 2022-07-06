@@ -18,9 +18,9 @@ FOR t AS BYTE = 0 TO 7
 NEXT t
 
 DIM x AS INT
-    x = 100-24
+    x = (320-48) / 2
 DIM y AS INT
-    y = 100-21
+    y = (200-42) / 2
 
 CALL scr_clear()
 

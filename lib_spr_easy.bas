@@ -403,30 +403,32 @@ spr_collision_loop:
         lda {spr_y},x                       ; Load Enemy Y position
         sec
         sbc {spr_y},y                       ; Subtract Player Y position
-        bpl spr_check_y_no_minus
-        eor #$ff                            ; Invert result sign
+        bcs spr_dy_positive
+        eor #$ff                            ; Negate result
         adc #1
-        cmp {spr_h},x
+        cmp {spr_h},x                       ; Compare distance to enemy height
         jmp spr_check_y_branch
 
-spr_check_y_no_minus:
-        cmp {spr_h},y                       ; Check for enemy sprite distance Y
+spr_dy_positive:
+        cmp {spr_h},y                       ; Compare distance to player height
 spr_check_y_branch:
         bcs spr_check_no_coll
 
         lda {spr_x},x                       ; Compare x coordinates
         sec
         sbc {spr_x},y                       ; Subtract Player X position
-        bpl spr_check_no_minus
-        eor #$ff                            ; Invert result sign
-        cmp {spr_w},x
+        bpl spr_dx_positive
+        eor #$ff                            ; Negate result
+        adc #1
+        cmp {spr_w},x                       ; compare distance to enemy width
         jmp spr_check_x_branch
-spr_check_no_minus:
-        cmp {spr_w},y                       ; Check for enemy sprite distance X
+
+spr_dx_positive:
+        cmp {spr_w},y                       ; Compare distance to player width
 spr_check_x_branch:
         bcs spr_check_no_coll
         lda #$ff
-        dc.b $2c ;bit
+        dc.b $2c                            ; BIT instruction that skips next LDA
 spr_check_no_coll:
         lda #$00
         sta {spr_col},x

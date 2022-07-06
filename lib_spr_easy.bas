@@ -289,7 +289,7 @@ END FUNCTION
 REM ****************************************************************************
 REM CALL spr_xy(0, 0, 0)
 REM ****************************************************************************
-REM Positions sprites top left corner to screen pixel x, y.
+REM Set sprite's top left corner to screen pixel (x, y).
 REM Bits [8:0] are used for x coordinate.
 REM 
 REM                 left border   fully visible   right border
@@ -298,7 +298,7 @@ REM x expanded        x <= -48    0 <= x < 272      x >= 320
 REM 
 REM                  top border   fully visible   bottom border
 REM y normal          y <= -21    0 <= y < 235      y >= 200
-REM y expanded        y <= -48    0 <= y < 214      y >= 200
+REM y expanded        y <= -42    0 <= y < 214      y >= 200
 REM 
 REM ****************************************************************************
 REM NOTE If you need collision detection, you MUST ALWAYS use this method to 

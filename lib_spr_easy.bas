@@ -27,6 +27,28 @@ REM ****************************************************************************
 DECLARE SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
 
 REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it horizontally.
+REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM ****************************************************************************
+DECLARE FUNCTION spr_flip_x_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
+
+REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it horizontally.
+REM ****************************************************************************
+DECLARE SUB spr_flip_x_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
+
+REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it vertically.
+REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM ****************************************************************************
+DECLARE FUNCTION spr_flip_y_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
+
+REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it vertically.
+REM ****************************************************************************
+DECLARE SUB spr_flip_y_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
+
+REM ****************************************************************************
 REM Following methods set and get sprite properties
 REM ****************************************************************************
 DECLARE SUB spr_config(spr_nr AS BYTE, is_mcolor AS BYTE, double_x AS BYTE, double_y AS BYTE, background AS BYTE, color AS BYTE) SHARED STATIC
@@ -104,6 +126,8 @@ REM **************************************
 REM INTERNAL HELPER
 REM **************************************
 DIM bit_pos(8) AS BYTE @_bit_pos
+DIM ZP0 AS WORD FAST
+DIM ZP1 AS WORD FAST
 
 REM ****************************************************************************
 REM CALL spr_init()
@@ -169,6 +193,98 @@ SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
         inc 1
         cli
     END ASM
+END SUB
+
+REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it horizontally.
+REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM ****************************************************************************
+FUNCTION spr_flip_x_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
+    spr_next_pattern_ptr = spr_next_pattern_ptr - 1
+    CALL spr_flip_x_pattern_to(src_pattern_ptr, spr_next_pattern_ptr)
+    RETURN spr_next_pattern_ptr
+END FUNCTION
+
+REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it horizontally.
+REM ****************************************************************************
+SUB spr_flip_x_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
+    ZP0 = spr_bank + SHL(src_pattern_ptr, 6)
+    ZP1 = spr_bank + SHL(dst_pattern_ptr, 6)
+
+    DIM tmp AS BYTE
+    ASM
+        ldy #60
+flip_x_row:
+        lda ({ZP0}),y
+        sta {tmp}
+        lda #128
+flip_x_byte0:
+        asl {tmp}
+        ror
+        bcc flip_x_byte0
+        tax
+
+        iny
+        iny
+
+        lda ({ZP0}),y
+        sta {tmp}
+        txa
+        sta ({ZP1}),y
+        lda #128
+flip_x_byte2:
+        asl {tmp}
+        ror
+        bcc flip_x_byte2
+        tax
+
+        dey
+
+        lda ({ZP0}),y
+        sta {tmp}
+        lda #128
+flip_x_byte1:
+        asl {tmp}
+        ror
+        bcc flip_x_byte1
+        sta ({ZP1}),y
+
+        dey
+
+        txa
+        sta ({ZP1}),y
+
+        dey
+        dey
+        dey
+        bpl flip_x_row
+    END ASM
+END SUB
+
+REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it vertically.
+REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM ****************************************************************************
+FUNCTION spr_flip_y_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
+    spr_next_pattern_ptr = spr_next_pattern_ptr - 1
+    CALL spr_flip_y_pattern_to(src_pattern_ptr, spr_next_pattern_ptr)
+    RETURN spr_next_pattern_ptr
+END FUNCTION
+
+REM ****************************************************************************
+REM Creates new pattern from existing pattern by mirroring it vertically.
+REM ****************************************************************************
+SUB spr_flip_y_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
+    ZP0 = spr_bank + SHL(src_pattern_ptr, 6)
+    ZP1 = spr_bank + SHL(dst_pattern_ptr, 6) + 60
+    FOR t AS BYTE = 0 TO 63
+        POKE ZP1+2, PEEK(ZP0 + 2)
+        POKE ZP1+1, PEEK(ZP0 + 1)
+        POKE ZP1, PEEK(ZP0)
+        ZP0 = ZP0 + 3
+        ZP1 = ZP1 - 3
+    NEXT t
 END SUB
 
 REM ****************************************************************************

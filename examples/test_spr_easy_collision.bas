@@ -7,13 +7,19 @@ INCLUDE "../lib_random.bas"
 
 RANDOMIZE TI()
 
-DIM B AS BYTE
-    B = spr_import_pattern(@SPRITE_BLOCK)
+DIM LB AS BYTE
+    LB = spr_import_pattern(@SPRITE_BLOCK)
+DIM RB AS BYTE
+    RB = spr_flip_x_pattern(LB)
+DIM LT AS BYTE
+    LT = spr_flip_y_pattern(LB)
+DIM RT AS BYTE
+    RT = spr_flip_y_pattern(RB)
 
 FOR t AS BYTE = 0 TO 7
     CALL spr_config(t, FALSE, t=2 OR t=3 OR t=7, t=3 OR t=4 OR t=7, TRUE, 2*t+1)
     CALL spr_enable(t, TRUE)
-    CALL spr_pattern(t, B)
+    CALL spr_pattern(t, random(252, 255))
     CALL spr_xy(t, random_word(0, 319), RNDB())
 NEXT t
 
@@ -47,6 +53,7 @@ game_loop:
     CALL spr_detect(7)
     FOR t AS BYTE = 0 TO 7
         IF spr_col(t) THEN
+            CALL spr_pattern(t, random(252, 255))
             spr_color(t) = spr_color(t) + 1
         END IF
     NEXT t
@@ -55,7 +62,6 @@ game_loop:
     GOTO game_loop
 
 SPRITE_BLOCK:
-rem sprite Block / singlecolor
 DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
@@ -73,7 +79,7 @@ DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
-DATA AS BYTE %11111111,%11111111,%11111111
-DATA AS BYTE %11111111,%11111111,%11111111
-DATA AS BYTE %11111111,%11111111,%11111111
-DATA AS BYTE %11111111,%11111111,%11111111
+DATA AS BYTE %11111111,%11111111,%00000000
+DATA AS BYTE %11111111,%11111111,%00000000
+DATA AS BYTE %11111111,%11111111,%00000000
+DATA AS BYTE %11111111,%11111111,%00000000

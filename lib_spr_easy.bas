@@ -157,7 +157,7 @@ REM Copies sprite pattern from DATA AS BYTE statements to address specified by
 REM given pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
 REM [Developer is responsible that the area is free]
 REM ****************************************************************************
-SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS BYTE) SHARED STATIC
+SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
     ASM
         sei                     ; turn off interrupts  
         dec 1                   ; can use also io memory for sprites

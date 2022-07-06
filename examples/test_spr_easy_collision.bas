@@ -10,7 +10,7 @@ RANDOMIZE TI()
 DIM B AS BYTE
     B = spr_import_pattern(@SPRITE_BLOCK)
 
-FOR t AS INT = 0 TO 7
+FOR t AS BYTE = 0 TO 7
     CALL spr_config(t, FALSE, t=2 OR t=3 OR t=7, t=3 OR t=4 OR t=7, TRUE, 2*t+1)
     CALL spr_enable(t, TRUE)
     CALL spr_pattern(t, B)
@@ -41,11 +41,8 @@ game_loop:
     CALL spr_xy(7, x, y)
 
     LOCATE 0,0
-    DIM real_x AS WORD
-        real_x = (x + 24) AND 511
-    IF real_x >= 480 THEN real_x = real_x - 8
-    PRINT x;" -> ";real_x;"    "
-    PRINT y;" -> ";(y + 50) AND 255;"    "
+    PRINT x;"    "
+    PRINT y;"    "
 
     CALL spr_detect(7)
     FOR t AS BYTE = 0 TO 7
@@ -56,7 +53,6 @@ game_loop:
 
     CALL scr_wait_bottom()
     GOTO game_loop
-END
 
 SPRITE_BLOCK:
 rem sprite Block / singlecolor

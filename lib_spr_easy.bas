@@ -24,7 +24,7 @@ REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to address specified by 
 REM given pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
 REM ****************************************************************************
-DECLARE SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
+DECLARE SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Following methods set and get sprite properties
@@ -140,7 +140,7 @@ REM VIC bank.
 REM Return: pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
 REM [Developer is responsible that the area is free]
 REM ****************************************************************************
-FUNCTION spr_import_pattern AS BYTE(src_addr AS WORD) SHARED STATIC OVERLOAD
+FUNCTION spr_import_pattern AS BYTE(src_addr AS WORD) SHARED STATIC
     spr_next_pattern_ptr = spr_next_pattern_ptr - 1
     CALL spr_import_pattern_to(src_addr, spr_next_pattern_ptr)
     RETURN spr_next_pattern_ptr
@@ -157,7 +157,7 @@ REM Copies sprite pattern from DATA AS BYTE statements to address specified by
 REM given pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
 REM [Developer is responsible that the area is free]
 REM ****************************************************************************
-SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS BYTE) SHARED STATIC OVERLOAD
+SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS BYTE) SHARED STATIC
     ASM
         sei                     ; turn off interrupts  
         dec 1                   ; can use also io memory for sprites

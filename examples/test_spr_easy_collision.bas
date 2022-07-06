@@ -8,12 +8,12 @@ INCLUDE "../lib_random.bas"
 RANDOMIZE TI()
 
 DIM B AS BYTE
-    B = spr_add_shape(@SPRITE_BLOCK)
+    B = spr_import_pattern(@SPRITE_BLOCK)
 
 FOR t AS INT = 0 TO 7
     CALL spr_config(t, FALSE, t=2 OR t=3 OR t=7, t=3 OR t=4 OR t=7, TRUE, 2*t+1)
     CALL spr_enable(t, TRUE)
-    CALL spr_shape(t, B)
+    CALL spr_pattern(t, B)
     CALL spr_xy(t, random_word(0, 319), RNDB())
 NEXT t
 

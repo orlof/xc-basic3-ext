@@ -24,9 +24,10 @@ DIM Y(2) AS BYTE
     Y(0) = 160
     Y(1) = 160
 
+DIM _ AS BYTE
 GAME_LOOP:
-    CALL SprBufDrawGeometry(0, @GeomTriangle, Angle(0))
-    CALL SprBufDrawGeometry(1, @GeomTriangle, Angle(1))
+    _ = SprBufDrawGeometry(0, @GeomTriangle, Angle(0))
+    _ = SprBufDrawGeometry(1, @GeomTriangle, Angle(1))
     CALL spr_xy(0, X(0), Y(0))
     CALL spr_xy(1, X(1), Y(1))
 
@@ -38,7 +39,7 @@ GAME_LOOP:
     Y(1) = Y(1) + RotY((Angle(1) AND %11111000) OR 1) - 10
     CALL scr_wait_bottom()
     CALL SprBufSwapAll()
-GOTO game_loop
+GOTO GAME_LOOP
 
 GeomTriangle:
 DATA AS BYTE 0, 3
@@ -46,6 +47,7 @@ DATA AS BYTE 20, 3
 DATA AS BYTE 12, 3
 DATA AS BYTE 0, 3
 DATA AS BYTE 2, 0
+
 GeomShip:
 DATA AS BYTE 0, 7
 DATA AS BYTE 4, 2
@@ -55,4 +57,4 @@ DATA AS BYTE 20, 2
 DATA AS BYTE 24, 7
 DATA AS BYTE 28, 2
 DATA AS BYTE 0, 7
-DATA AS BYTE 2, 0
+DATA AS WORD 2, 0

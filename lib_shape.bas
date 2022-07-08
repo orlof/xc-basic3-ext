@@ -26,10 +26,10 @@ REM This assures that you can use the same label pointers for ShapePrepare
 REM and ShapeDrawGeometry
 REM 
 REM Special Values
-REM   NO_DRAW     = 4, 0
-REM   END_SHAPE   = 2, 0
-REM   ORIGO       = 0, 0
-SUB ShapePrepare(GeometryAddr AS WORD) SHARED STATIC
+REM   DATA AS WORD SHAPE_NO_DRAW
+REM   DATA AS WORD SHAPE_END
+REM   ORIGO = 0, 0
+FUNCTION ShapePrepare AS WORD(GeometryAddr AS WORD) SHARED STATIC
     ZP_W0 = 0   ' offset
     DO
         DIM Angular AS BYTE
@@ -41,7 +41,8 @@ SUB ShapePrepare(GeometryAddr AS WORD) SHARED STATIC
         POKE GeometryAddr + SHR(ZP_W0, 1), SHL(Angular, 3) OR Radial
         ZP_W0 = ZP_W0 + 2
     LOOP UNTIL Angular = 2 AND Radial = 0
-END SUB
+    RETURN GeometryAddr
+END FUNCTION
 
 SUB ShapeClear(ShapePtr AS WORD) SHARED STATIC
     MEMSET VicBank + SHL(ShapePtr, 6), 63, 0
@@ -57,6 +58,7 @@ DIM sprite_line_err AS BYTE FAST
 
 SUB ShapeDrawLine() STATIC
     ASM
+shape_draw_line:
         ldx #$c6                ; calc dy, sy
         lda {sprite_line_y1}
         sec
@@ -206,9 +208,8 @@ REM   30     ESE
 REM
 REM SPECIAL VALUES
 REM 
-REM SKIP  Line drawing can be disabled in one segment if special value $20 is 
-REM       the points.
-REM END   End of shape data must be marked with $10
+REM NO DRAW  $20  Don't draw line between previous and next points
+REM END      $10  End of shape data
 REM 
 REM Special Values occupy unused Angles in Radial 0 circle and thus center point
 REM must always be addressed with 0, 0 - even thou in theory all angles with
@@ -239,6 +240,11 @@ SUB ShapeDrawGeometry(ShapePtr AS WORD, GeometryAddr AS WORD, Angle AS BYTE) SHA
         sprite_line_y2 = RotY(Index)
 
         IF Draw THEN CALL ShapeDrawLine()
+        'IF Draw THEN
+        '    ASM
+        '        jsr shape_draw_line
+        '    END ASM
+        'END IF
         Draw = $ff
     LOOP
 END SUB

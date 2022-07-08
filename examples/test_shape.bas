@@ -1,6 +1,6 @@
 INCLUDE "../lib_color.bas"
 INCLUDE "../lib_types.bas"
-INCLUDE "../lib_spr_easy.bas"
+INCLUDE "../lib_spr.bas"
 INCLUDE "../lib_shape.bas"
 INCLUDE "../lib_scr.bas"
 

@@ -1,12 +1,12 @@
 INCLUDE "../lib_color.bas"
 INCLUDE "../lib_types.bas"
 INCLUDE "../lib_spr.bas"
-INCLUDE "../lib_shape.bas"
+INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
-CALL ShapePrepare(@GeomTriangle)
-CALL ShapePrepare(@GeomShip)
+CALL SprGeomPrepare(@GeomTriangle)
+CALL SprGeomPrepare(@GeomShip)
 
 CALL SprBufInit(240)
 CALL SprConfig(0, FALSE, TRUE, TRUE, TRUE, COLOR_BLACK)

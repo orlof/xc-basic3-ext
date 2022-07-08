@@ -1,11 +1,11 @@
 INCLUDE "../lib_color.bas"
 INCLUDE "../lib_types.bas"
 INCLUDE "../lib_spr.bas"
-INCLUDE "../lib_shape.bas"
+INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_scr.bas"
 
-CALL ShapePrepare(@GeomTriangle)
-CALL ShapePrepare(@GeomShip)
+CALL SprGeomPrepare(@GeomTriangle)
+CALL SprGeomPrepare(@GeomShip)
 
 CALL SprConfig(0, FALSE, TRUE, TRUE, TRUE, COLOR_WHITE)
 CALL SprFrame(0, 255)
@@ -18,8 +18,8 @@ DIM X AS WORD
 DIM Y AS BYTE
     Y = 160
 GAME_LOOP:
-    CALL ShapeClear(255)
-    CALL ShapeDrawGeometry(255, @GeomShip, Angle)
+    CALL SprClearFrame(255)
+    CALL SprGeomDraw(255, @GeomShip, Angle)
     CALL SprXY(0, X, Y)
     Angle = Angle + 1
     X = X + RotX((Angle AND %11111000) OR 1) - 11

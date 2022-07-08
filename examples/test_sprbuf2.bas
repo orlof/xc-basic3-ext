@@ -1,7 +1,7 @@
 INCLUDE "../lib_color.bas"
 INCLUDE "../lib_types.bas"
 INCLUDE "../lib_spr.bas"
-INCLUDE "../lib_shape.bas"
+INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
@@ -23,7 +23,7 @@ Shape(13) = @GeomShip13
 Shape(14) = @GeomShip14
 Shape(15) = @GeomShip15
 FOR t AS BYTE = 0 TO 15
-    CALL ShapePrepare(Shape(t))
+    CALL SprGeomPrepare(Shape(t))
 NEXT t
 
 CALL SprBufInit(240)

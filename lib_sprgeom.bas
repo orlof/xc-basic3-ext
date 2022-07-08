@@ -1,19 +1,30 @@
-DECLARE SUB ShapeDrawGeometry(ShapePtr AS WORD, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-DECLARE SUB ShapeClear(ShapePtr AS WORD) SHARED STATIC
+DECLARE SUB SprGeomInit() SHARED STATIC
+DECLARE SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+DECLARE SUB SprGeomLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
+DECLARE SUB SprGeomPrepare(GeometryAddr AS WORD) SHARED STATIC
+DECLARE SUB _DrawLine() STATIC
 
 DIM VicBank AS WORD
     VicBank = 0
 
 DIM ZP_W0 AS WORD FAST
+DIM sprite_line_x1 AS BYTE FAST
+DIM sprite_line_y1 AS BYTE FAST
+DIM sprite_line_x2 AS BYTE FAST
+DIM sprite_line_y2 AS BYTE FAST
+DIM sprite_line_dx AS BYTE FAST
+DIM sprite_line_dy AS BYTE FAST
+DIM sprite_line_err AS BYTE FAST
+
 
 DIM SHARED RotX(256) AS BYTE @ _RotX
 DIM SHARED RotY(256) AS BYTE @ _RotY
-DIM PixelMask(24) AS BYTE @_pixel_mask
+DIM pixel_mask(24) AS BYTE @_pixel_mask
 
 CONST END_SHAPE  = $10
 CONST NO_DRAW    = $20
 
-SUB ShapeInit() SHARED STATIC
+SUB SprGeomInit() SHARED STATIC
     VicBank = 16384 * ((PEEK($dd00) AND %00000011) XOR %00000011)
 END SUB
 
@@ -29,7 +40,7 @@ REM Special Values
 REM   NO_DRAW  DATA AS WORD $0400
 REM   END      DATA AS WORD $0200
 REM   0,0      DATA AS BYTE 0, 0
-SUB ShapePrepare(GeometryAddr AS WORD) SHARED STATIC
+SUB SprGeomPrepare(GeometryAddr AS WORD) SHARED STATIC
     ZP_W0 = 0   ' offset
     DO
         DIM Angular AS BYTE
@@ -43,19 +54,16 @@ SUB ShapePrepare(GeometryAddr AS WORD) SHARED STATIC
     LOOP UNTIL Angular = 2 AND Radial = 0
 END SUB
 
-SUB ShapeClear(ShapePtr AS WORD) SHARED STATIC
-    MEMSET VicBank + SHL(ShapePtr, 6), 63, 0
+SUB SprGeomLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
+    ZP_W0 = VicBank + SHL(CWORD(FramePtr), 6)
+    sprite_line_x1 = x0
+    sprite_line_y1 = y0
+    sprite_line_x2 = x1
+    sprite_line_y2 = y1
+    CALL _DrawLine()
 END SUB
 
-DIM sprite_line_x1 AS BYTE FAST
-DIM sprite_line_y1 AS BYTE FAST
-DIM sprite_line_x2 AS BYTE FAST
-DIM sprite_line_y2 AS BYTE FAST
-DIM sprite_line_dx AS BYTE FAST
-DIM sprite_line_dy AS BYTE FAST
-DIM sprite_line_err AS BYTE FAST
-
-SUB ShapeDrawLine() STATIC
+SUB _DrawLine() STATIC
     ASM
 shape_draw_line:
         ldx #$c6                ; calc dy, sy
@@ -115,7 +123,7 @@ sprite_line_loop
         tax
         
         lda ({ZP_W0}),y
-        ora {PixelMask},x
+        ora {pixel_mask},x
         sta ({ZP_W0}),y
         
         ; x1 != x2 ?
@@ -213,8 +221,8 @@ REM
 REM Special Values occupy unused Angles in Radial 0 circle and thus center point
 REM must always be addressed with 0, 0 - even thou in theory all angles with
 REM Radial 0 represent same point (center). 
-SUB ShapeDrawGeometry(ShapePtr AS WORD, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-    ZP_W0 = VicBank + SHL(ShapePtr, 6)
+SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+    ZP_W0 = VicBank + SHL(CWORD(FramePtr), 6)
     Angle = Angle AND %11111000
 
     DIM Index AS BYTE
@@ -238,7 +246,7 @@ SUB ShapeDrawGeometry(ShapePtr AS WORD, GeometryAddr AS WORD, Angle AS BYTE) SHA
         sprite_line_x2 = RotX(Index)
         sprite_line_y2 = RotY(Index)
 
-        IF Draw THEN CALL ShapeDrawLine()
+        IF Draw THEN CALL _DrawLine()
         Draw = $ff
     LOOP
 END SUB

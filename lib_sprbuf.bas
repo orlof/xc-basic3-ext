@@ -27,8 +27,8 @@ REM address
 REM ****************************************************************************
 SUB SprBufInit(FrameStart AS BYTE) SHARED STATIC
     FOR t AS BYTE = 0 TO 7
-        CALL ShapeClear(FrameStart + 2 * t)
-        CALL ShapeClear(FrameStart + 2 * t + 1)
+        CALL SprClearFrame(FrameStart + 2 * t)
+        CALL SprClearFrame(FrameStart + 2 * t + 1)
         CALL SprFrame(t, FrameStart + 2 * t)
     NEXT t
 END SUB
@@ -63,8 +63,8 @@ SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARE
     IF PrevAngle(SprNr) = Angle AND PrevGeometry(SprNr) = GeometryAddr THEN EXIT SUB
 
     ZP_B0 = SprFrame(SprNr) XOR 1
-    CALL ShapeClear(ZP_B0)
-    CALL ShapeDrawGeometry(ZP_B0, GeometryAddr, Angle)
+    CALL SprClearFrame(ZP_B0)
+    CALL SprGeomDraw(ZP_B0, GeometryAddr, Angle)
     PrevAngle(SprNr) = Angle
     PrevGeometry(SprNr) = GeometryAddr
     SwapAvailable(SprNr) = $ff
@@ -73,7 +73,7 @@ END SUB
 
 SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
     ZP_B0 = SprFrame(SprNr) XOR 1
-    CALL ShapeClear(ZP_B0)
+    CALL SprClearFrame(ZP_B0)
 END SUB
 
 SUB SprBufSwapAll() SHARED STATIC

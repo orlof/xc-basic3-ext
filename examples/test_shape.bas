@@ -7,10 +7,9 @@ INCLUDE "../lib_scr.bas"
 CALL ShapePrepare(@GeomTriangle)
 CALL ShapePrepare(@GeomShip)
 
-CALL spr_init()
-CALL spr_config(0, FALSE, TRUE, TRUE, TRUE, COLOR_WHITE)
-CALL spr_pattern(0, 255)
-CALL spr_enable(0, TRUE)
+CALL SprConfig(0, FALSE, TRUE, TRUE, TRUE, COLOR_WHITE)
+CALL SprShape(0, 255)
+CALL SprEnable(0, TRUE)
 
 DIM Angle AS BYTE
     Angle = 0
@@ -21,7 +20,7 @@ DIM Y AS BYTE
 GAME_LOOP:
     CALL ShapeClear(255)
     CALL ShapeDrawGeometry(255, @GeomShip, Angle)
-    CALL spr_xy(0, X, Y)
+    CALL SprXY(0, X, Y)
     Angle = Angle + 1
     X = X + RotX((Angle AND %11111000) OR 1) - 11
     Y = Y + RotY((Angle AND %11111000) OR 1) - 10

@@ -26,10 +26,10 @@ REM This assures that you can use the same label pointers for ShapePrepare
 REM and ShapeDrawGeometry
 REM 
 REM Special Values
-REM   DATA AS WORD SHAPE_NO_DRAW
-REM   DATA AS WORD SHAPE_END
-REM   ORIGO = 0, 0
-FUNCTION ShapePrepare AS WORD(GeometryAddr AS WORD) SHARED STATIC
+REM   NO_DRAW  DATA AS WORD $0400
+REM   END      DATA AS WORD $0200
+REM   0,0      DATA AS BYTE 0, 0
+SUB ShapePrepare(GeometryAddr AS WORD) SHARED STATIC
     ZP_W0 = 0   ' offset
     DO
         DIM Angular AS BYTE
@@ -41,8 +41,7 @@ FUNCTION ShapePrepare AS WORD(GeometryAddr AS WORD) SHARED STATIC
         POKE GeometryAddr + SHR(ZP_W0, 1), SHL(Angular, 3) OR Radial
         ZP_W0 = ZP_W0 + 2
     LOOP UNTIL Angular = 2 AND Radial = 0
-    RETURN GeometryAddr
-END FUNCTION
+END SUB
 
 SUB ShapeClear(ShapePtr AS WORD) SHARED STATIC
     MEMSET VicBank + SHL(ShapePtr, 6), 63, 0
@@ -240,11 +239,6 @@ SUB ShapeDrawGeometry(ShapePtr AS WORD, GeometryAddr AS WORD, Angle AS BYTE) SHA
         sprite_line_y2 = RotY(Index)
 
         IF Draw THEN CALL ShapeDrawLine()
-        'IF Draw THEN
-        '    ASM
-        '        jsr shape_draw_line
-        '    END ASM
-        'END IF
         Draw = $ff
     LOOP
 END SUB

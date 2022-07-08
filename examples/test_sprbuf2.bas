@@ -6,27 +6,30 @@ INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
 DIM Shape(16) AS WORD
-Shape(0) = ShapePrepare(@GeomShip0)
-Shape(1) = ShapePrepare(@GeomShip1)
-Shape(2) = ShapePrepare(@GeomShip2)
-Shape(3) = ShapePrepare(@GeomShip3)
-Shape(4) = ShapePrepare(@GeomShip4)
-Shape(5) = ShapePrepare(@GeomShip5)
-Shape(6) = ShapePrepare(@GeomShip6)
-Shape(7) = ShapePrepare(@GeomShip7)
-Shape(8) = ShapePrepare(@GeomShip8)
-Shape(9) = ShapePrepare(@GeomShip9)
-Shape(10) = ShapePrepare(@GeomShip10)
-Shape(11) = ShapePrepare(@GeomShip11)
-Shape(12) = ShapePrepare(@GeomShip12)
-Shape(13) = ShapePrepare(@GeomShip13)
-Shape(14) = ShapePrepare(@GeomShip14)
-Shape(15) = ShapePrepare(@GeomShip15)
+Shape(0) = @GeomShip0
+Shape(1) = @GeomShip1
+Shape(2) = @GeomShip2
+Shape(3) = @GeomShip3
+Shape(4) = @GeomShip4
+Shape(5) = @GeomShip5
+Shape(6) = @GeomShip6
+Shape(7) = @GeomShip7
+Shape(8) = @GeomShip8
+Shape(9) = @GeomShip9
+Shape(10) = @GeomShip10
+Shape(11) = @GeomShip11
+Shape(12) = @GeomShip12
+Shape(13) = @GeomShip13
+Shape(14) = @GeomShip14
+Shape(15) = @GeomShip15
+FOR t AS BYTE = 0 TO 15
+    CALL ShapePrepare(Shape(t))
+NEXT t
 
 CALL SprBufInit(240)
 
 FOR t AS BYTE = 0 TO 7
-    CALL spr_config(t, FALSE, TRUE, TRUE, TRUE, 2*t+1)
+    CALL SprConfig(t, FALSE, TRUE, TRUE, TRUE, 2*t+1)
 NEXT t
 
 DIM Angle(8) AS BYTE @_Angle
@@ -39,21 +42,21 @@ DIM NumSprites AS BYTE
 GAME_LOOP:
     IF NumSprites <> 7 AND (Angle(0) AND %0011111) = 0 THEN
         NumSprites = NumSprites + 1
-        CALL spr_enable(NumSprites, TRUE)
+        CALL SprEnable(NumSprites, TRUE)
     END IF
     FOR t AS BYTE = 0 TO NumSprites
         CALL SprBufRequestGeometry(t, Shape(t), Angle(t))
     NEXT t
     CALL SprBufUpdate(1)
     FOR t AS BYTE = 0 TO NumSprites
-        CALL spr_xy(t, X(t), Y(t))
+        CALL SprXY(t, X(t), Y(t))
 
         X(t) = X(t) + RotX((Angle(t) AND %11111000) OR 1) - 11
         Y(t) = Y(t) + RotY((Angle(t) AND %11111000) OR 1) - 10
         Angle(t) = Angle(t) + 1
     NEXT t
 
-    CALL scr_wait_bottom()
+    'CALL scr_wait_bottom()
     CALL SprBufSwapAll()
 GOTO GAME_LOOP
 

@@ -8,16 +8,16 @@ INCLUDE "../lib_random.bas"
 RANDOMIZE TI()
 
 DIM pattern(4) AS BYTE
-pattern(0) = spr_import_pattern(@SPRITE_BLOCK)
-pattern(1) = spr_flip_x_pattern(pattern(0))
-pattern(2) = spr_flip_y_pattern(pattern(0))
-pattern(3) = spr_flip_y_pattern(pattern(1))
+pattern(0) = SprImportShape(@SPRITE_BLOCK)
+pattern(1) = SprFlipXShape(pattern(0))
+pattern(2) = SprFlipYShape(pattern(0))
+pattern(3) = SprFlipYShape(pattern(1))
 
 FOR t AS BYTE = 0 TO 7
-    CALL spr_config(t, FALSE, TRUE, TRUE, TRUE, 2*t+1)
-    CALL spr_pattern(t, pattern(t AND 3))
-    CALL spr_xy(t, random_word(0, 320-48), random(0, 200-42))
-    CALL spr_enable(t, TRUE)
+    CALL SprConfig(t, FALSE, TRUE, TRUE, TRUE, 2*t+1)
+    CALL SprShape(t, pattern(t AND 3))
+    CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
+    CALL SprEnable(t, TRUE)
 NEXT t
 
 DIM x AS INT
@@ -41,18 +41,18 @@ game_loop:
         x = x - 1
     END IF
     
-    CALL spr_xy(7, x, y)
+    CALL SprXY(7, x, y)
 
     LOCATE 0,0
     PRINT x;"    "
     PRINT y;"    "
 
-    CALL spr_detect(7)
+    CALL SprRecordCollisions(7)
     FOR t AS BYTE = 0 TO 7
-        IF spr_col(t) THEN
-            CALL spr_pattern(t, pattern(((spr_pattern(t)+1) AND 3)))
-            spr_color(t) = spr_color(t) + 1
-            CALL spr_xy(t, random_word(0, 320-48), random(0, 200-42))
+        IF SprCollision(t) THEN
+            CALL SprShape(t, pattern(((SprShape(t)+1) AND 3)))
+            SprColor(t) = SprColor(t) + 1
+            CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
         END IF
     NEXT t
 

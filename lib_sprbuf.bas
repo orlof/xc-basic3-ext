@@ -1,9 +1,9 @@
 'INCLUDE "lib_shape.bas"
 'INCLUDE "lib_spr.bas"
 
-DECLARE FUNCTION SprBufDrawGeometry AS BYTE(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+DECLARE SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
-
+DECLARE SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
 
 REM **************************************
 REM INTERNAL FIELDS
@@ -17,6 +17,8 @@ DIM PrevGeometry(8) AS WORD @_PrevGeometry
 DIM NextAngle(8) AS BYTE @_NextAngle
 DIM NextGeometry(8) AS WORD @_NextGeometry
 
+DIM DrawCompleted AS BYTE
+
 REM ****************************************************************************
 REM CALL spr_init()
 REM ****************************************************************************
@@ -25,7 +27,9 @@ REM address
 REM ****************************************************************************
 SUB SprBufInit(FrameStart AS BYTE) SHARED STATIC
     FOR t AS BYTE = 0 TO 7
-        CALL spr_pattern(t, FrameStart + 2 * t)
+        CALL ShapeClear(FrameStart + 2 * t)
+        CALL ShapeClear(FrameStart + 2 * t + 1)
+        CALL SprShape(t, FrameStart + 2 * t)
     NEXT t
 END SUB
 
@@ -38,7 +42,8 @@ DIM NextUpdate AS BYTE
     NextUpdate = 0
 SUB SprBufUpdate(MaxUpdates AS BYTE) SHARED STATIC
     FOR t AS BYTE = 0 TO 7
-        IF SprBufDrawGeometry(NextUpdate, NextGeometry(NextUpdate), NextAngle(NextUpdate)) THEN
+        CALL SprBufDrawGeometry(NextUpdate, NextGeometry(NextUpdate), NextAngle(NextUpdate)) 
+        IF DrawCompleted THEN
             MaxUpdates = MaxUpdates - 1
             IF MaxUpdates=0 THEN 
                 NextUpdate = NextUpdate + 1
@@ -51,22 +56,23 @@ SUB SprBufUpdate(MaxUpdates AS BYTE) SHARED STATIC
     NEXT t    
 END SUB
 
-FUNCTION SprBufDrawGeometry AS BYTE(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+    DrawCompleted = $00
     Angle = Angle AND %11111000
-    IF GeometryAddr = 0 THEN RETURN $00
-    IF PrevAngle(SprNr) = Angle AND PrevGeometry(SprNr) = GeometryAddr THEN RETURN $00
+    IF GeometryAddr = 0 THEN EXIT SUB
+    IF PrevAngle(SprNr) = Angle AND PrevGeometry(SprNr) = GeometryAddr THEN EXIT SUB
 
-    ZP_B0 = spr_pattern(SprNr) XOR 1
+    ZP_B0 = SprShape(SprNr) XOR 1
     CALL ShapeClear(ZP_B0)
     CALL ShapeDrawGeometry(ZP_B0, GeometryAddr, Angle)
     PrevAngle(SprNr) = Angle
     PrevGeometry(SprNr) = GeometryAddr
     SwapAvailable(SprNr) = $ff
-    RETURN $ff
-END FUNCTION
+    DrawCompleted = $ff
+END SUB
 
 SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
-    ZP_B0 = spr_pattern(SprNr) XOR 1
+    ZP_B0 = SprShape(SprNr) XOR 1
     CALL ShapeClear(ZP_B0)
 END SUB
 
@@ -78,7 +84,7 @@ END SUB
 
 SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
     IF SwapAvailable(SprNr) THEN
-        CALL spr_pattern(SprNr, spr_pattern(SprNr) XOR 1)
+        CALL SprShape(SprNr, SprShape(SprNr) XOR 1)
         SwapAvailable(SprNr) = $00
     END IF
 END SUB        

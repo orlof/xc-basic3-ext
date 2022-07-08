@@ -9,10 +9,10 @@ CALL ShapePrepare(@GeomTriangle)
 CALL ShapePrepare(@GeomShip)
 
 CALL SprBufInit(240)
-CALL spr_config(0, FALSE, TRUE, TRUE, TRUE, COLOR_BLACK)
-CALL spr_config(1, FALSE, TRUE, TRUE, TRUE, COLOR_WHITE)
-CALL spr_enable(0, TRUE)
-CALL spr_enable(1, TRUE)
+CALL SprConfig(0, FALSE, TRUE, TRUE, TRUE, COLOR_BLACK)
+CALL SprConfig(1, FALSE, TRUE, TRUE, TRUE, COLOR_WHITE)
+CALL SprEnable(0, TRUE)
+CALL SprEnable(1, TRUE)
 
 DIM Angle(2) AS BYTE
     Angle(0) = 0
@@ -26,10 +26,10 @@ DIM Y(2) AS BYTE
 
 DIM _ AS BYTE
 GAME_LOOP:
-    _ = SprBufDrawGeometry(0, @GeomTriangle, Angle(0))
-    _ = SprBufDrawGeometry(1, @GeomTriangle, Angle(1))
-    CALL spr_xy(0, X(0), Y(0))
-    CALL spr_xy(1, X(1), Y(1))
+    CALL SprBufDrawGeometry(0, @GeomTriangle, Angle(0))
+    CALL SprBufDrawGeometry(1, @GeomTriangle, Angle(1))
+    CALL SprXY(0, X(0), Y(0))
+    CALL SprXY(1, X(1), Y(1))
 
     Angle(0) = Angle(0) + 1
     Angle(1) = Angle(1) - 1

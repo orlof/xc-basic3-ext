@@ -7,69 +7,69 @@ REM **************************************
 REM ****************************************************************************
 REM Must be called before other methods if VIC bank or videoram is moved
 REM ****************************************************************************
-DECLARE SUB spr_init() SHARED STATIC
+DECLARE SUB SprInit() SHARED STATIC
 
 REM ****************************************************************************
 REM Define colors for multicolor sprites
 REM ****************************************************************************
-DECLARE SUB spr_mcolors(mc1 AS BYTE, mc2 AS BYTE) SHARED STATIC
+DECLARE SUB SprMultiColors(Color1 AS BYTE, Color2 AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to the end of the current 
-REM VIC bank. Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM VIC bank. Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
 REM ****************************************************************************
-DECLARE FUNCTION spr_import_pattern AS BYTE(src_addr AS WORD) SHARED STATIC
+DECLARE FUNCTION SprImportShape AS BYTE(SrcAddr AS WORD) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to address specified by 
-REM given pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
+REM given FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM ****************************************************************************
-DECLARE SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
+DECLARE SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
-REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
 REM ****************************************************************************
-DECLARE FUNCTION spr_flip_x_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
+DECLARE FUNCTION SprFlipXShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
 REM ****************************************************************************
-DECLARE SUB spr_flip_x_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
+DECLARE SUB SprFlipXShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
-REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
 REM ****************************************************************************
-DECLARE FUNCTION spr_flip_y_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
+DECLARE FUNCTION SprFlipYShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
 REM ****************************************************************************
-DECLARE SUB spr_flip_y_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
+DECLARE SUB SprFlipYShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Following methods set and get sprite properties
 REM ****************************************************************************
-DECLARE SUB spr_config(spr_nr AS BYTE, is_mcolor AS BYTE, double_x AS BYTE, double_y AS BYTE, background AS BYTE, color AS BYTE) SHARED STATIC
-DECLARE SUB spr_enable(spr_nr AS BYTE, enable AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION spr_enable AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB spr_double_x(spr_nr AS BYTE, enable AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION spr_double_x AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB spr_double_y(spr_nr AS BYTE, enable AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION spr_double_y AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB spr_pattern(spr_nr AS BYTE, pattern_ptr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION spr_pattern AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
+DECLARE SUB SprConfig(SprNr AS BYTE, IsMultiColor AS BYTE, DoubleX AS BYTE, DoubleY AS BYTE, Background AS BYTE, Color AS BYTE) SHARED STATIC
+DECLARE SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
+DECLARE FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+DECLARE SUB SprDoubleX(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
+DECLARE FUNCTION SprDoubleX AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+DECLARE SUB SprDoubleY(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
+DECLARE FUNCTION SprDoubleY AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+DECLARE SUB SprShape(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
+DECLARE FUNCTION SprShape AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Set x, y position of sprite.
 REM ****************************************************************************
-DECLARE SUB spr_xy(spr_nr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
+DECLARE SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
-REM Records sprite-sprite collisions with defined sprite to spr_col(8) array
+REM Records sprite-sprite collisions with defined sprite to SprCollision(8) array
 REM ****************************************************************************
-DECLARE SUB spr_detect(spr_nr AS BYTE) SHARED STATIC
+DECLARE SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
 
 REM **************************************
 REM PUBLIC FIELDS
@@ -77,12 +77,12 @@ REM **************************************
 REM ****************************************************************************
 REM This field is an alias for io registers that store sprite colors. R/W
 REM ****************************************************************************
-DIM SHARED spr_color(8) AS BYTE @$d027
+DIM SHARED SprColor(8) AS BYTE @$d027
 
 REM ****************************************************************************
-REM "CALL spr_detect(spr_nr)" updates collison data (TRUE/FALSE) for each sprite
+REM "CALL SprRecordCollisions(SprNr)" updates collison data (TRUE/FALSE) for each sprite
 REM ****************************************************************************
-DIM SHARED spr_col(8) AS BYTE @_spr_col
+DIM SHARED SprCollision(8) AS BYTE @_SprCollision
 
 
 REM ****************************************************************************
@@ -100,8 +100,8 @@ DIM VicBank AS WORD
     VicBank = 0
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
-DIM spr_next_pattern_ptr AS BYTE
-    spr_next_pattern_ptr = 0
+DIM SprFreeFramePtr AS BYTE
+    SprFreeFramePtr = 0
 
 DIM spr_reg_xy(8) AS TYPE_SPR_REG @$d000
 DIM spr_reg_msb AS BYTE @$d010
@@ -129,64 +129,64 @@ DIM ZP_W0 AS WORD FAST
 DIM ZP_W1 AS WORD FAST
 
 REM ****************************************************************************
-REM CALL spr_init()
+REM CALL SprInit()
 REM ****************************************************************************
 REM Call before using the library if you change VIC bank or screen memory 
 REM address
 REM ****************************************************************************
-SUB spr_init() SHARED STATIC
+SUB SprInit() SHARED STATIC
     VicBank = 16384 * ((PEEK($dd00) AND %00000011) XOR %00000011)
     spr_ptrs = VicBank + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 END SUB
 
 REM ****************************************************************************
 REM INCLUDE "color.bas"
-REM CALL spr_mcolors(COLOR_BLACK, COLOR_WHITE)
+REM CALL SprMultiColors(COLOR_BLACK, COLOR_WHITE)
 REM ****************************************************************************
 REM Set color values for multicolor sprites
 REM ****************************************************************************
-SUB spr_mcolors(mc1 AS BYTE, mc2 AS BYTE) SHARED STATIC
-    spr_reg_mc1 = mc1
-    spr_reg_mc2 = mc2
+SUB SprMultiColors(Color1 AS BYTE, Color2 AS BYTE) SHARED STATIC
+    spr_reg_mc1 = Color1
+    spr_reg_mc2 = Color2
 END SUB
 
 REM ****************************************************************************
-REM DIM pattern_ptr AS BYTE
-REM     pattern_ptr = spr_import_pattern(@PLAYER_SHIP)
-REM CALL spr_pattern(0, pattern_ptr)
+REM DIM FramePtr AS BYTE
+REM     FramePtr = SprImportShape(@PLAYER_SHIP)
+REM CALL SprShape(0, FramePtr)
 REM ...
 REM PLAYER_SHIP:
 REM DATA AS BYTE 1,2,3,4,5...
 REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to the end of the current 
 REM VIC bank. 
-REM Return: pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
+REM Return: FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM [Developer is responsible that the area is free]
 REM ****************************************************************************
-FUNCTION spr_import_pattern AS BYTE(src_addr AS WORD) SHARED STATIC
-    spr_next_pattern_ptr = spr_next_pattern_ptr - 1
-    CALL spr_import_pattern_to(src_addr, spr_next_pattern_ptr)
-    RETURN spr_next_pattern_ptr
+FUNCTION SprImportShape AS BYTE(SrcAddr AS WORD) SHARED STATIC OVERLOAD
+    SprFreeFramePtr = SprFreeFramePtr - 1
+    CALL SprImportShape(SrcAddr, SprFreeFramePtr)
+    RETURN SprFreeFramePtr
 END FUNCTION
 
 REM ****************************************************************************
-REM CALL spr_import_pattern_to(@PLAYER_SHIP, 255)
-REM CALL spr_pattern(0, 255)
+REM CALL SprImportShape(@PLAYER_SHIP, 255)
+REM CALL SprShape(0, 255)
 REM ...
 REM PLAYER_SHIP:
 REM DATA AS BYTE 1,2,3,4,5...
 REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to address specified by 
-REM given pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
+REM given FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM [Developer is responsible that the area is free]
 REM ****************************************************************************
-SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
+SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC OVERLOAD
     ASM
         sei                     ; turn off interrupts  
         dec 1                   ; can use also io memory for sprites
         dec 1                   ; by disabling kernel and io
     END ASM
-    MEMCPY src_addr, VicBank + SHL(pattern_ptr, 6), 63
+    MEMCPY SrcAddr, VicBank + SHL(CWORD(FramePtr), 6), 63
     ASM
         inc 1                   ; restore io, kernel and interrupts
         inc 1
@@ -196,20 +196,20 @@ END SUB
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
-REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
 REM ****************************************************************************
-FUNCTION spr_flip_x_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
-    spr_next_pattern_ptr = spr_next_pattern_ptr - 1
-    CALL spr_flip_x_pattern_to(src_pattern_ptr, spr_next_pattern_ptr)
-    RETURN spr_next_pattern_ptr
+FUNCTION SprFlipXShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
+    SprFreeFramePtr = SprFreeFramePtr - 1
+    CALL SprFlipXShape(SrcFramePtr, SprFreeFramePtr)
+    RETURN SprFreeFramePtr
 END FUNCTION
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
 REM ****************************************************************************
-SUB spr_flip_x_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
-    ZP_W0 = VicBank + SHL(src_pattern_ptr, 6)
-    ZP_W1 = VicBank + SHL(dst_pattern_ptr, 6)
+SUB SprFlipXShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC OVERLOAD
+    ZP_W0 = VicBank + SHL(CWORD(SrcFramePtr), 6)
+    ZP_W1 = VicBank + SHL(CWORD(DstFramePtr), 6)
 
     DIM tmp AS BYTE
     ASM
@@ -263,20 +263,20 @@ END SUB
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
-REM Returns pattern_ptr for "CALL spr_pattern(spr_nr, pattern_ptr)"
+REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
 REM ****************************************************************************
-FUNCTION spr_flip_y_pattern AS BYTE(src_pattern_ptr AS BYTE) SHARED STATIC
-    spr_next_pattern_ptr = spr_next_pattern_ptr - 1
-    CALL spr_flip_y_pattern_to(src_pattern_ptr, spr_next_pattern_ptr)
-    RETURN spr_next_pattern_ptr
+FUNCTION SprFlipYShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
+    SprFreeFramePtr = SprFreeFramePtr - 1
+    CALL SprFlipYShape(SrcFramePtr, SprFreeFramePtr)
+    RETURN SprFreeFramePtr
 END FUNCTION
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
 REM ****************************************************************************
-SUB spr_flip_y_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
-    ZP_W0 = VicBank + SHL(src_pattern_ptr, 6)
-    ZP_W1 = VicBank + SHL(dst_pattern_ptr, 6) + 60
+SUB SprFlipYShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC OVERLOAD
+    ZP_W0 = VicBank + SHL(CWORD(SrcFramePtr), 6)
+    ZP_W1 = VicBank + SHL(CWORD(DstFramePtr), 6) + 60
     FOR t AS BYTE = 0 TO 63
         POKE ZP_W1+2, PEEK(ZP_W0 + 2)
         POKE ZP_W1+1, PEEK(ZP_W0 + 1)
@@ -289,120 +289,120 @@ END SUB
 REM ****************************************************************************
 REM INCLUDE "lib_color.bas"
 REM INCLUDE "lib_types.bas"
-REM CALL spr_config(0, FALSE, FALSE, FALSE, FALSE, COLOR_WHITE)
+REM CALL SprConfig(0, FALSE, FALSE, FALSE, FALSE, COLOR_WHITE)
 REM ****************************************************************************
 REM Configure all multiple sprite attributes with one call
 REM ****************************************************************************
-SUB spr_config(spr_nr AS BYTE, is_mcolor AS BYTE, double_x AS BYTE, double_y AS BYTE, background AS BYTE, color AS BYTE) SHARED STATIC
+SUB SprConfig(SprNr AS BYTE, IsMultiColor AS BYTE, DoubleX AS BYTE, DoubleY AS BYTE, Background AS BYTE, Color AS BYTE) SHARED STATIC
     DIM bit AS BYTE
-        bit = bit_pos(spr_nr)
-    IF is_mcolor THEN
+        bit = bit_pos(SprNr)
+    IF IsMultiColor THEN
         spr_reg_mc = spr_reg_mc OR bit
     ELSE
         spr_reg_mc = spr_reg_mc AND NOT bit
     END IF
-    IF double_x THEN
+    IF DoubleX THEN
         spr_reg_dx = spr_reg_dx OR bit
-        spr_w(spr_nr) = 24
+        spr_w(SprNr) = 24
     ELSE
         spr_reg_dx = spr_reg_dx AND NOT bit
-        spr_w(spr_nr) = 12
+        spr_w(SprNr) = 12
     END IF
-    IF double_y THEN
+    IF DoubleY THEN
         spr_reg_dy = spr_reg_dy OR bit
-        spr_h(spr_nr) = 42
+        spr_h(SprNr) = 42
     ELSE
         spr_reg_dy = spr_reg_dy AND NOT bit
-        spr_h(spr_nr) = 21
+        spr_h(SprNr) = 21
     END IF
-    IF background THEN
+    IF Background THEN
         spr_reg_back = spr_reg_back OR bit
     ELSE
         spr_reg_back = spr_reg_back AND NOT bit
     END IF
-    spr_color(spr_nr) = color
+    SprColor(SprNr) = Color
 END SUB
 
 REM ****************************************************************************
 REM INCLUDE "lib_types.bas"
-REM CALL spr_enable(0, TRUE)
+REM CALL SprEnable(0, TRUE)
 REM ****************************************************************************
-SUB spr_enable(spr_nr AS BYTE, enable AS BYTE) SHARED STATIC OVERLOAD
-    IF enable THEN
-        spr_reg_enable = spr_reg_enable OR bit_pos(spr_nr)
+SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
+    IF Value THEN
+        spr_reg_enable = spr_reg_enable OR bit_pos(SprNr)
     ELSE
-        spr_reg_enable = spr_reg_enable AND NOT bit_pos(spr_nr)
+        spr_reg_enable = spr_reg_enable AND NOT bit_pos(SprNr)
     END IF
 END SUB
 
 REM ****************************************************************************
-REM IF spr_enable(0) THEN PRINT "0: enabled"
+REM IF SprEnable(0) THEN PRINT "0: enabled"
 REM ****************************************************************************
-FUNCTION spr_enable AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_reg_enable AND bit_pos(spr_nr) <> 0
+FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+    RETURN spr_reg_enable AND bit_pos(SprNr) <> 0
 END FUNCTION
 
 REM ****************************************************************************
 REM INCLUDE "lib_types.bas"
-REM CALL spr_double_x(0, TRUE)
+REM CALL SprDoubleX(0, TRUE)
 REM ****************************************************************************
-SUB spr_double_x(spr_nr AS BYTE, enable AS BYTE) SHARED STATIC OVERLOAD
-    IF enable THEN
-        spr_reg_dx = spr_reg_dx OR bit_pos(spr_nr)
+SUB SprDoubleX(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
+    IF Value THEN
+        spr_reg_dx = spr_reg_dx OR bit_pos(SprNr)
     ELSE
-        spr_reg_dx = spr_reg_dx AND NOT bit_pos(spr_nr)
+        spr_reg_dx = spr_reg_dx AND NOT bit_pos(SprNr)
     END IF
 END SUB
 
 REM ****************************************************************************
-REM IF spr_double_x(0) THEN PRINT "width: 48"
+REM IF SprDoubleX(0) THEN PRINT "width: 48"
 REM ****************************************************************************
-FUNCTION spr_double_x AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_reg_dx AND bit_pos(spr_nr) <> 0
+FUNCTION SprDoubleX AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+    RETURN spr_reg_dx AND bit_pos(SprNr) <> 0
 END FUNCTION
 
 REM ****************************************************************************
 REM INCLUDE "lib_types.bas"
-REM CALL spr_double_y(0, TRUE)
+REM CALL SprDoubleY(0, TRUE)
 REM ****************************************************************************
-SUB spr_double_y(spr_nr AS BYTE, enable AS BYTE) SHARED STATIC OVERLOAD
-    IF enable THEN
-        spr_reg_dy = spr_reg_dy OR bit_pos(spr_nr)
+SUB SprDoubleY(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
+    IF Value THEN
+        spr_reg_dy = spr_reg_dy OR bit_pos(SprNr)
     ELSE
-        spr_reg_dy = spr_reg_dy AND NOT bit_pos(spr_nr)
+        spr_reg_dy = spr_reg_dy AND NOT bit_pos(SprNr)
     END IF
 END SUB
 
 REM ****************************************************************************
-REM IF spr_double_y(0) THEN PRINT "height: 42"
+REM IF SprDoubleY(0) THEN PRINT "height: 42"
 REM ****************************************************************************
-FUNCTION spr_double_y AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_reg_dy AND bit_pos(spr_nr) <> 0
+FUNCTION SprDoubleY AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+    RETURN spr_reg_dy AND bit_pos(SprNr) <> 0
 END FUNCTION
 
 REM ****************************************************************************
 REM CALL spr_shape(0, 192)
 REM ****************************************************************************
-REM Set sprite's pattern_ptr (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
+REM Set sprite's FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM Make sure to place the sprite pattern data to this memory area either
-REM with "ORIGIN" -directive or by "CALL spr_import_pattern(src_addr)""
+REM with "ORIGIN" -directive or by "CALL SprImportShape(SrcAddr)""
 REM ****************************************************************************
-SUB spr_pattern(spr_nr AS BYTE, pattern_ptr AS BYTE) SHARED STATIC OVERLOAD
-    POKE spr_ptrs + spr_nr, pattern_ptr
+SUB SprShape(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
+    POKE spr_ptrs + SprNr, FramePtr
 END SUB
 
 REM ****************************************************************************
-REM PRINT "Sprite 0 address "; 64 * spr_pattern(0)
+REM PRINT "Sprite 0 address "; 64 * SprShape(0)
 REM ****************************************************************************
-REM Returns sprite's pattern_ptr.
-REM (16384 * VIC_BANK + 64 * pattern_ptr = dest_address)
+REM Returns sprite's FramePtr.
+REM (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM ****************************************************************************
-FUNCTION spr_pattern AS BYTE(spr_nr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN PEEK(spr_ptrs + spr_nr)
+FUNCTION SprShape AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+    RETURN PEEK(spr_ptrs + SprNr)
 END FUNCTION
 
 REM ****************************************************************************
-REM CALL spr_xy(0, 0, 0)
+REM CALL SprXY(0, 0, 0)
 REM ****************************************************************************
 REM Set sprite's top left corner to screen pixel (x, y).
 REM Bits [8:0] are used for x coordinate.
@@ -419,18 +419,18 @@ REM ****************************************************************************
 REM NOTE If you need collision detection, you MUST ALWAYS use this method to 
 REM set sprite position!
 REM ****************************************************************************
-SUB spr_xy(spr_nr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
+SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
     ASM
-        lda {spr_nr}
-        tax                     ; [x] = spr_nr
+        lda {SprNr}
+        tax                     ; [x] = SprNr
         asl
-        tay                     ; [y] = 2 * spr_nr
+        tay                     ; [y] = 2 * SprNr
 
-        clc                     ; spr_reg_xy(spr_nr).y = y + 50
+        clc                     ; spr_reg_xy(SprNr).y = y + 50
         lda {y}
         adc #50
         sta $d001,y
-        sta {spr_y},x           ; spr_y(spr_nr) = y + 50
+        sta {spr_y},x           ; spr_y(SprNr) = y + 50
 
         clc                     ; x = (x + 24) && $1ff
         lda {x}
@@ -441,7 +441,7 @@ SUB spr_xy(spr_nr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
         and #1
         sta {x}+1
 
-        lsr                     ; spr_x(spr_nr) = x >> 1
+        lsr                     ; spr_x(SprNr) = x >> 1
         lda {x}
         ror
         sta {spr_x},x
@@ -457,20 +457,20 @@ SUB spr_xy(spr_nr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
         sta {x}                 ; END IF
 
 spr_xy_no_bad_zone:
-        lda {x}                 ; spr_reg_xy(spr_nr).x = x && $ff
+        lda {x}                 ; spr_reg_xy(SprNr).x = x && $ff
         sta $d000,y
         lda {x}+1               ; IF x > 255 THEN spr_xy_msb1
         bne spr_xy_msb1
         
 spr_xy_msb0:
-        lda {bit_pos},x         ; spr_reg_msb = spr_reg_msb OR bit_pos(spr_nr)
+        lda {bit_pos},x         ; spr_reg_msb = spr_reg_msb OR bit_pos(SprNr)
         eor #$ff
         and $d010
         sta $d010
         jmp spr_xy_end
 
 spr_xy_msb1:
-        lda {bit_pos},x         ; spr_reg_msb AND NOT bit_pos(spr_nr)
+        lda {bit_pos},x         ; spr_reg_msb AND NOT bit_pos(SprNr)
         ora $d010
         sta $d010
 spr_xy_end:
@@ -478,30 +478,30 @@ spr_xy_end:
 END SUB
 
 REM ****************************************************************************
-REM CALL spr_detect(0)
+REM CALL SprRecordCollisions(0)
 REM FOR t AS BYTE = 1 TO 7
-REM     PRINT t, spr_col(t)
+REM     PRINT t, SprCollision(t)
 REM NEXT t
 REM ****************************************************************************
-REM Records sprite-sprite collisions with defined sprite to spr_col(8) array
+REM Records sprite-sprite collisions with defined sprite to SprCollision(8) array
 REM ****************************************************************************
-SUB spr_detect(spr_nr AS BYTE) SHARED STATIC
+SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
     DIM mask AS BYTE
     ASM
         lda $d015
         sta {mask}
-        ldy {spr_nr}
+        ldy {SprNr}
         and {bit_pos},y
         bne spr_collision_detect
 
-        sta {spr_col}                       ; no collisions for spr_nr
-        sta {spr_col}+1
-        sta {spr_col}+2
-        sta {spr_col}+3
-        sta {spr_col}+4
-        sta {spr_col}+5
-        sta {spr_col}+6
-        sta {spr_col}+7
+        sta {SprCollision}                       ; no collisions for SprNr
+        sta {SprCollision}+1
+        sta {SprCollision}+2
+        sta {SprCollision}+3
+        sta {SprCollision}+4
+        sta {SprCollision}+5
+        sta {SprCollision}+6
+        sta {SprCollision}+7
         jmp spr_check_collision_end
 
 spr_collision_detect:
@@ -546,7 +546,7 @@ spr_check_x_branch:
         dc.b $2c                            ; BIT instruction that skips next LDA
 spr_check_no_coll:
         lda #$00
-        sta {spr_col},x
+        sta {SprCollision},x
         dex                                 ; Goes to next sprite
         bpl spr_collision_loop
 spr_check_collision_end:
@@ -560,7 +560,7 @@ _spr_x:
 DATA AS BYTE $A0, $80, $A0, $D0, $50, $70, $90, $A0
 _spr_y:
 DATA AS BYTE $64, $80, $A0, $D0, $50, $70, $90, $A0
-_spr_col:
+_SprCollision:
 DATA AS BYTE $00, $00, $00, $00, $00, $00, $00, $00
 _spr_w:
 DATA AS BYTE $00, $00, $00, $00, $00, $00, $00, $00

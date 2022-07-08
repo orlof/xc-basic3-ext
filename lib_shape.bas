@@ -215,6 +215,7 @@ REM must always be addressed with 0, 0 - even thou in theory all angles with
 REM Radial 0 represent same point (center). 
 SUB ShapeDrawGeometry(ShapePtr AS WORD, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
     ZP_W0 = VicBank + SHL(ShapePtr, 6)
+    Angle = Angle AND %11111000
 
     DIM Index AS BYTE
     DIM Draw AS BYTE
@@ -233,7 +234,7 @@ SUB ShapeDrawGeometry(ShapePtr AS WORD, GeometryAddr AS WORD, Angle AS BYTE) SHA
         sprite_line_x1 = sprite_line_x2
         sprite_line_y1 = sprite_line_y2
 
-        Index = Index + (Angle AND %11111000)
+        Index = Index + Angle
         sprite_line_x2 = RotX(Index)
         sprite_line_y2 = RotY(Index)
 

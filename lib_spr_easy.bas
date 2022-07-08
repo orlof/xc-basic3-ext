@@ -71,7 +71,6 @@ REM Records sprite-sprite collisions with defined sprite to spr_col(8) array
 REM ****************************************************************************
 DECLARE SUB spr_detect(spr_nr AS BYTE) SHARED STATIC
 
-
 REM **************************************
 REM PUBLIC FIELDS
 REM **************************************
@@ -97,8 +96,8 @@ END TYPE
 REM **************************************
 REM INTERNAL FIELDS
 REM **************************************
-DIM spr_bank AS WORD
-    spr_bank = 0
+DIM VicBank AS WORD
+    VicBank = 0
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
 DIM spr_next_pattern_ptr AS BYTE
@@ -126,8 +125,8 @@ REM **************************************
 REM INTERNAL HELPER
 REM **************************************
 DIM bit_pos(8) AS BYTE @_bit_pos
-DIM ZP0 AS WORD FAST
-DIM ZP1 AS WORD FAST
+DIM ZP_W0 AS WORD FAST
+DIM ZP_W1 AS WORD FAST
 
 REM ****************************************************************************
 REM CALL spr_init()
@@ -136,8 +135,8 @@ REM Call before using the library if you change VIC bank or screen memory
 REM address
 REM ****************************************************************************
 SUB spr_init() SHARED STATIC
-    spr_bank = 16384 * ((PEEK($dd00) AND %11111100) XOR %00000011)
-    spr_ptrs = spr_bank + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
+    VicBank = 16384 * ((PEEK($dd00) AND %00000011) XOR %00000011)
+    spr_ptrs = VicBank + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 END SUB
 
 REM ****************************************************************************
@@ -187,7 +186,7 @@ SUB spr_import_pattern_to(src_addr AS WORD, pattern_ptr AS WORD) SHARED STATIC
         dec 1                   ; can use also io memory for sprites
         dec 1                   ; by disabling kernel and io
     END ASM
-    MEMCPY src_addr, spr_bank + SHL(pattern_ptr, 6), 63
+    MEMCPY src_addr, VicBank + SHL(pattern_ptr, 6), 63
     ASM
         inc 1                   ; restore io, kernel and interrupts
         inc 1
@@ -209,14 +208,14 @@ REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
 REM ****************************************************************************
 SUB spr_flip_x_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
-    ZP0 = spr_bank + SHL(src_pattern_ptr, 6)
-    ZP1 = spr_bank + SHL(dst_pattern_ptr, 6)
+    ZP_W0 = VicBank + SHL(src_pattern_ptr, 6)
+    ZP_W1 = VicBank + SHL(dst_pattern_ptr, 6)
 
     DIM tmp AS BYTE
     ASM
         ldy #60
 flip_x_row:
-        lda ({ZP0}),y
+        lda ({ZP_W0}),y
         sta {tmp}
         lda #128
 flip_x_byte0:
@@ -228,10 +227,10 @@ flip_x_byte0:
         iny
         iny
 
-        lda ({ZP0}),y
+        lda ({ZP_W0}),y
         sta {tmp}
         txa
-        sta ({ZP1}),y
+        sta ({ZP_W1}),y
         lda #128
 flip_x_byte2:
         asl {tmp}
@@ -241,19 +240,19 @@ flip_x_byte2:
 
         dey
 
-        lda ({ZP0}),y
+        lda ({ZP_W0}),y
         sta {tmp}
         lda #128
 flip_x_byte1:
         asl {tmp}
         ror
         bcc flip_x_byte1
-        sta ({ZP1}),y
+        sta ({ZP_W1}),y
 
         dey
 
         txa
-        sta ({ZP1}),y
+        sta ({ZP_W1}),y
 
         dey
         dey
@@ -276,14 +275,14 @@ REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
 REM ****************************************************************************
 SUB spr_flip_y_pattern_to(src_pattern_ptr AS WORD, dst_pattern_ptr AS WORD) SHARED STATIC
-    ZP0 = spr_bank + SHL(src_pattern_ptr, 6)
-    ZP1 = spr_bank + SHL(dst_pattern_ptr, 6) + 60
+    ZP_W0 = VicBank + SHL(src_pattern_ptr, 6)
+    ZP_W1 = VicBank + SHL(dst_pattern_ptr, 6) + 60
     FOR t AS BYTE = 0 TO 63
-        POKE ZP1+2, PEEK(ZP0 + 2)
-        POKE ZP1+1, PEEK(ZP0 + 1)
-        POKE ZP1, PEEK(ZP0)
-        ZP0 = ZP0 + 3
-        ZP1 = ZP1 - 3
+        POKE ZP_W1+2, PEEK(ZP_W0 + 2)
+        POKE ZP_W1+1, PEEK(ZP_W0 + 1)
+        POKE ZP_W1, PEEK(ZP_W0)
+        ZP_W0 = ZP_W0 + 3
+        ZP_W1 = ZP_W1 - 3
     NEXT t
 END SUB
 
@@ -570,3 +569,4 @@ DATA AS BYTE $00, $00, $00, $00, $00, $00, $00, $00
 
 _bit_pos:
 DATA AS BYTE 1, 2, 4, 8, 16, 32, 64, 128
+

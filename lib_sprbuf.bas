@@ -29,7 +29,7 @@ SUB SprBufInit(FrameStart AS BYTE) SHARED STATIC
     FOR t AS BYTE = 0 TO 7
         CALL ShapeClear(FrameStart + 2 * t)
         CALL ShapeClear(FrameStart + 2 * t + 1)
-        CALL SprShape(t, FrameStart + 2 * t)
+        CALL SprFrame(t, FrameStart + 2 * t)
     NEXT t
 END SUB
 
@@ -62,7 +62,7 @@ SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARE
     IF GeometryAddr = 0 THEN EXIT SUB
     IF PrevAngle(SprNr) = Angle AND PrevGeometry(SprNr) = GeometryAddr THEN EXIT SUB
 
-    ZP_B0 = SprShape(SprNr) XOR 1
+    ZP_B0 = SprFrame(SprNr) XOR 1
     CALL ShapeClear(ZP_B0)
     CALL ShapeDrawGeometry(ZP_B0, GeometryAddr, Angle)
     PrevAngle(SprNr) = Angle
@@ -72,7 +72,7 @@ SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARE
 END SUB
 
 SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
-    ZP_B0 = SprShape(SprNr) XOR 1
+    ZP_B0 = SprFrame(SprNr) XOR 1
     CALL ShapeClear(ZP_B0)
 END SUB
 
@@ -84,7 +84,7 @@ END SUB
 
 SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
     IF SwapAvailable(SprNr) THEN
-        CALL SprShape(SprNr, SprShape(SprNr) XOR 1)
+        CALL SprFrame(SprNr, SprFrame(SprNr) XOR 1)
         SwapAvailable(SprNr) = $00
     END IF
 END SUB        

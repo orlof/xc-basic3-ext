@@ -15,7 +15,7 @@ pattern(3) = SprFlipYShape(pattern(1))
 
 FOR t AS BYTE = 0 TO 7
     CALL SprConfig(t, FALSE, TRUE, TRUE, TRUE, 2*t+1)
-    CALL SprShape(t, pattern(t AND 3))
+    CALL SprFrame(t, pattern(t AND 3))
     CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
     CALL SprEnable(t, TRUE)
 NEXT t
@@ -50,7 +50,7 @@ game_loop:
     CALL SprRecordCollisions(7)
     FOR t AS BYTE = 0 TO 7
         IF SprCollision(t) THEN
-            CALL SprShape(t, pattern(((SprShape(t)+1) AND 3)))
+            CALL SprFrame(t, pattern(((SprFrame(t)+1) AND 3)))
             SprColor(t) = SprColor(t) + 1
             CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
         END IF

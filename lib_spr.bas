@@ -16,7 +16,7 @@ DECLARE SUB SprMultiColors(Color1 AS BYTE, Color2 AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to the end of the current 
-REM VIC bank. Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
+REM VIC bank. Returns FramePtr for "CALL SprFrame(SprNr, FramePtr)"
 REM ****************************************************************************
 DECLARE FUNCTION SprImportShape AS BYTE(SrcAddr AS WORD) SHARED STATIC OVERLOAD
 
@@ -28,7 +28,7 @@ DECLARE SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC OVER
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
-REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
+REM Returns FramePtr for "CALL SprFrame(SprNr, FramePtr)"
 REM ****************************************************************************
 DECLARE FUNCTION SprFlipXShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
 
@@ -39,7 +39,7 @@ DECLARE SUB SprFlipXShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATI
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
-REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
+REM Returns FramePtr for "CALL SprFrame(SprNr, FramePtr)"
 REM ****************************************************************************
 DECLARE FUNCTION SprFlipYShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
 
@@ -58,8 +58,8 @@ DECLARE SUB SprDoubleX(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
 DECLARE FUNCTION SprDoubleX AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
 DECLARE SUB SprDoubleY(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
 DECLARE FUNCTION SprDoubleY AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB SprShape(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION SprShape AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+DECLARE SUB SprFrame(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
+DECLARE FUNCTION SprFrame AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Set x, y position of sprite.
@@ -153,7 +153,7 @@ END SUB
 REM ****************************************************************************
 REM DIM FramePtr AS BYTE
 REM     FramePtr = SprImportShape(@PLAYER_SHIP)
-REM CALL SprShape(0, FramePtr)
+REM CALL SprFrame(0, FramePtr)
 REM ...
 REM PLAYER_SHIP:
 REM DATA AS BYTE 1,2,3,4,5...
@@ -171,7 +171,7 @@ END FUNCTION
 
 REM ****************************************************************************
 REM CALL SprImportShape(@PLAYER_SHIP, 255)
-REM CALL SprShape(0, 255)
+REM CALL SprFrame(0, 255)
 REM ...
 REM PLAYER_SHIP:
 REM DATA AS BYTE 1,2,3,4,5...
@@ -196,7 +196,7 @@ END SUB
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
-REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
+REM Returns FramePtr for "CALL SprFrame(SprNr, FramePtr)"
 REM ****************************************************************************
 FUNCTION SprFlipXShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
     SprFreeFramePtr = SprFreeFramePtr - 1
@@ -263,7 +263,7 @@ END SUB
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
-REM Returns FramePtr for "CALL SprShape(SprNr, FramePtr)"
+REM Returns FramePtr for "CALL SprFrame(SprNr, FramePtr)"
 REM ****************************************************************************
 FUNCTION SprFlipYShape AS BYTE(SrcFramePtr AS BYTE) SHARED STATIC OVERLOAD
     SprFreeFramePtr = SprFreeFramePtr - 1
@@ -387,17 +387,17 @@ REM Set sprite's FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM Make sure to place the sprite pattern data to this memory area either
 REM with "ORIGIN" -directive or by "CALL SprImportShape(SrcAddr)""
 REM ****************************************************************************
-SUB SprShape(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
+SUB SprFrame(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
     POKE spr_ptrs + SprNr, FramePtr
 END SUB
 
 REM ****************************************************************************
-REM PRINT "Sprite 0 address "; 64 * SprShape(0)
+REM PRINT "Sprite 0 address "; 64 * SprFrame(0)
 REM ****************************************************************************
 REM Returns sprite's FramePtr.
 REM (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM ****************************************************************************
-FUNCTION SprShape AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
+FUNCTION SprFrame AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
     RETURN PEEK(spr_ptrs + SprNr)
 END FUNCTION
 

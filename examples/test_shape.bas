@@ -8,7 +8,7 @@ CALL ShapePrepare(@GeomTriangle)
 CALL ShapePrepare(@GeomShip)
 
 CALL SprConfig(0, FALSE, TRUE, TRUE, TRUE, COLOR_WHITE)
-CALL SprShape(0, 255)
+CALL SprFrame(0, 255)
 CALL SprEnable(0, TRUE)
 
 DIM Angle AS BYTE

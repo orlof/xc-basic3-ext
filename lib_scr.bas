@@ -1,4 +1,3 @@
-DECLARE SUB scr_color(bc AS BYTE, sc AS BYTE) SHARED STATIC
 DECLARE SUB scr_centre(s AS STRING * 96) SHARED STATIC OVERLOAD
 DECLARE SUB scr_centre(y AS BYTE, s AS STRING * 96) SHARED STATIC OVERLOAD
 DECLARE SUB scr_clear() SHARED STATIC
@@ -16,6 +15,9 @@ SHARED CONST CHARSET_LOWERCASE = 2048
 DIM SHARED leading_space AS STRING * 20
 leading_space = "                    "
 
+DIM SHARED BorderColor AS BYTE @53280
+DIM SHARED ScreenColor AS BYTE @53281
+
 SUB scr_wait_bottom() SHARED STATIC
     ASM
 wait1:  bit $d011
@@ -23,11 +25,6 @@ wait1:  bit $d011
 wait2:  bit $d011
         bpl wait2
     END ASM
-END SUB
-
-SUB scr_color(bc AS BYTE, sc AS BYTE) SHARED STATIC
-    POKE 53280, bc
-    POKE 53281, sc
 END SUB
 
 SUB scr_centre(s AS STRING * 96) SHARED STATIC

@@ -26,46 +26,50 @@ FOR t AS BYTE = 0 TO 15
     CALL SprGeomPrepare(Shape(t))
 NEXT t
 
-CALL SprBufInit(240)
+CALL SprInit()
+CALL SprBufInit(224)
+CALL SpriteInit()
+print "init"
 
-FOR t AS BYTE = 0 TO 7
-    CALL SprConfig(t, FALSE, TRUE, TRUE, TRUE, 2*t+1)
+DIM X(16) AS WORD
+DIM Y(16) AS BYTE
+
+FOR t AS BYTE = 0 TO 15
+    IF t = (ScreenColor AND %111) THEN
+        CALL SprColor(t, t XOR %100)
+    ELSE
+        CALL SprColor(t, t)
+    END IF
+    X(t) = 130
+    Y(t) = 160
 NEXT t
 
-DIM Angle(8) AS BYTE @_Angle
-DIM X(8) AS WORD @_X
-DIM Y(8) AS BYTE @_Y
-
 DIM NumSprites AS BYTE
-    NumSprites = -1
+    NumSprites = 0
+DIM Angle AS BYTE
+    Angle = 0
 
+print "start"
 GAME_LOOP:
-    IF NumSprites <> 7 AND (Angle(0) AND %0011111) = 0 THEN
-        NumSprites = NumSprites + 1
+    IF NumSprites < 16 AND (Angle AND %0001111) = 0 THEN
         CALL SprEnable(NumSprites, TRUE)
+        NumSprites = NumSprites + 1
+        PRINT NumSprites
     END IF
-    FOR t AS BYTE = 0 TO NumSprites
-        CALL SprBufRequestGeometry(t, Shape(t), Angle(t))
-    NEXT t
-    CALL SprBufUpdate(1)
-    FOR t AS BYTE = 0 TO NumSprites
+    FOR t AS BYTE = 0 TO NumSprites-1
+        DIM a AS BYTE
+            a = Angle - SHL(t, 4)
+        CALL SprBufRequestGeometry(t, Shape(t), a)
         CALL SprXY(t, X(t), Y(t))
 
-        X(t) = X(t) + RotX((Angle(t) AND %11111000) OR 1) - 11
-        Y(t) = Y(t) + RotY((Angle(t) AND %11111000) OR 1) - 10
-        Angle(t) = Angle(t) + 1
+        X(t) = X(t) + RotX((a AND %11111000) OR 1) - 11
+        Y(t) = Y(t) + RotY((a AND %11111000) OR 1) - 10
     NEXT t
-
-    'CALL scr_wait_bottom()
+    Angle = Angle + 1
+    CALL SprBufUpdate(2)
     CALL SprBufSwapAll()
+    CALL SpriteUpdate()
 GOTO GAME_LOOP
-
-_Angle:
-DATA AS BYTE 0,0,0,0,0,0,0,0
-_X:
-DATA AS WORD 130,130,130,130,130,130,130,130
-_Y:
-DATA AS BYTE 160,160,160,160,160,160,160,160
 
 GeomShip0:
 DATA AS BYTE 0, 3

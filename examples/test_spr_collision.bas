@@ -7,22 +7,21 @@ INCLUDE "../lib_random.bas"
 
 RANDOMIZE TI()
 
+CALL SprInit()
+CALL SpriteInit()
 CALL SprImportShape(@SPRITE_BLOCK, 255)
-CALL SprFlipXShape(255, 254)
-CALL SprFlipYShape(255, 253)
-CALL SprFlipYShape(254, 252)
 
-FOR t AS BYTE = 0 TO 7
-    CALL SprConfig(t, FALSE, TRUE, TRUE, TRUE, 2*t+1)
-    CALL SprFrame(t, 252 + (t AND 3))
+FOR t AS BYTE = 0 TO 15
+    CALL SprColor(t, t AND 3)
+    CALL SprFrame(t, 255)
     CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
     CALL SprEnable(t, TRUE)
 NEXT t
 
 DIM x AS INT
-    x = (320-48) / 2
+    x = (320-24) / 2
 DIM y AS INT
-    y = (200-42) / 2
+    y = (200-21) / 2
 
 CALL scr_clear()
 
@@ -40,22 +39,20 @@ game_loop:
         x = x - 1
     END IF
     
-    CALL SprXY(7, x, y)
+    CALL SprXY(0, x, y)
 
     LOCATE 0,0
     PRINT x;"    "
     PRINT y;"    "
 
-    CALL SprRecordCollisions(7)
-    FOR t AS BYTE = 0 TO 7
+    CALL SprRecordCollisions(0)
+    FOR t AS BYTE = 0 TO 15
         IF SprCollision(t) THEN
-            CALL SprFrame(t, 252 + ((SprFrame(t)+1) AND 3))
-            SprColor(t) = SprColor(t) + 1
             CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
         END IF
     NEXT t
 
-    CALL scr_wait_bottom()
+    CALL SpriteUpdate()
     GOTO game_loop
 
 SPRITE_BLOCK:
@@ -76,7 +73,7 @@ DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
 DATA AS BYTE %11111111,%11111111,%11111111
-DATA AS BYTE %11111111,%11111111,%00000000
-DATA AS BYTE %11111111,%11111111,%00000000
-DATA AS BYTE %11111111,%11111111,%00000000
-DATA AS BYTE %11111111,%11111111,%00000000
+DATA AS BYTE %11111111,%11111111,%11111111
+DATA AS BYTE %11111111,%11111111,%11111111
+DATA AS BYTE %11111111,%11111111,%11111111
+DATA AS BYTE %11111111,%11111111,%11111111

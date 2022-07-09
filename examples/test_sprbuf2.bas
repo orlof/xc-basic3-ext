@@ -1,9 +1,16 @@
 INCLUDE "../lib_color.bas"
 INCLUDE "../lib_types.bas"
+INCLUDE "../lib_memory.bas"
 INCLUDE "../lib_spr.bas"
 INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
+
+CONST MAX_NUM_SPRITES = 8
+
+CALL Scr_Clear()
+ScreenColor = COLOR_BLACK
+BorderColor = COLOR_BLACK
 
 DIM Shape(16) AS WORD
 Shape(0) = @GeomShip0
@@ -26,20 +33,21 @@ FOR t AS BYTE = 0 TO 15
     CALL SprGeomPrepare(Shape(t))
 NEXT t
 
-CALL SprInit()
-CALL SprBufInit(224)
-CALL SpriteInit()
+CALL SprInit(MAX_NUM_SPRITES)
+CALL SprBufInit(256 - 2 * MAX_NUM_SPRITES, MAX_NUM_SPRITES)
 print "init"
 
-DIM X(16) AS WORD
-DIM Y(16) AS BYTE
+DIM X(MAX_NUM_SPRITES) AS WORD
+DIM Y(MAX_NUM_SPRITES) AS BYTE
 
-FOR t AS BYTE = 0 TO 15
+FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
     IF t = (ScreenColor AND %111) THEN
         CALL SprColor(t, t XOR %100)
     ELSE
         CALL SprColor(t, t)
     END IF
+    CALL SprDoubleX(t, (t AND 1) = 0)
+    CALL SprDoubleY(t, (t AND 2) = 0)
     X(t) = 130
     Y(t) = 160
 NEXT t
@@ -48,27 +56,30 @@ DIM NumSprites AS BYTE
     NumSprites = 0
 DIM Angle AS BYTE
     Angle = 0
+DIM Trigger AS BYTE
+    Trigger = 256 / MAX_NUM_SPRITES
+PRINT Trigger
 
 print "start"
 GAME_LOOP:
-    IF NumSprites < 16 AND (Angle AND %0001111) = 0 THEN
+    IF (NumSprites < MAX_NUM_SPRITES) AND ((Angle AND (Trigger-1)) = 0) THEN
         CALL SprEnable(NumSprites, TRUE)
         NumSprites = NumSprites + 1
         PRINT NumSprites
     END IF
     FOR t AS BYTE = 0 TO NumSprites-1
         DIM a AS BYTE
-            a = Angle - SHL(t, 4)
-        CALL SprBufRequestGeometry(t, Shape(t), a)
+            a = Angle - Trigger * t
+        CALL SprBufRequestGeometry(t, Shape(t), a + 4)
         CALL SprXY(t, X(t), Y(t))
 
         X(t) = X(t) + RotX((a AND %11111000) OR 1) - 11
         Y(t) = Y(t) + RotY((a AND %11111000) OR 1) - 10
     NEXT t
     Angle = Angle + 1
-    CALL SprBufUpdate(2)
+    CALL SprBufUpdate(1)
     CALL SprBufSwapAll()
-    CALL SpriteUpdate()
+    CALL SpriteUpdate(TRUE)
 GOTO GAME_LOOP
 
 GeomShip0:
@@ -148,6 +159,7 @@ DATA AS BYTE 12, 7
 DATA AS BYTE 20, 7
 DATA AS BYTE 0, 7
 DATA AS WORD $0004
+DATA AS BYTE 0, 2
 DATA AS BYTE 12, 2
 DATA AS BYTE 20, 2
 DATA AS BYTE 0, 2
@@ -165,6 +177,7 @@ DATA AS BYTE 12, 5
 DATA AS BYTE 20, 5
 DATA AS BYTE 0, 5
 DATA AS WORD $0004
+DATA AS BYTE 12, 5
 DATA AS BYTE 14, 7
 DATA AS BYTE 16, 3
 DATA AS BYTE 18, 7
@@ -214,6 +227,7 @@ DATA AS BYTE 12, 6
 DATA AS BYTE 7, 5
 DATA AS BYTE 0, 6
 DATA AS WORD $0004
+DATA AS BYTE 0, 3
 DATA AS BYTE 20, 3
 DATA AS BYTE 12, 3
 DATA AS BYTE 0, 3

@@ -20,6 +20,7 @@ DIM NextAngle(MAX_NUM_SPRITES) AS BYTE
 DIM NextGeometry(MAX_NUM_SPRITES) AS WORD
 
 DIM DrawCompleted AS BYTE
+DIM num_sprites AS BYTE
 
 REM ****************************************************************************
 REM CALL spr_init()
@@ -27,8 +28,14 @@ REM ****************************************************************************
 REM Call before using the library if you change VIC bank or screen memory 
 REM address
 REM ****************************************************************************
-SUB SprBufInit(FrameStart AS BYTE) SHARED STATIC
-    FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
+SUB SprBufInit(FrameStart AS BYTE, NumSprites AS BYTE) SHARED STATIC
+    num_sprites = NumSprites
+    FOR t AS BYTE = 0 TO num_sprites-1
+        SwapAvailable(t) = $00
+        PrevAngle(t) = 0
+        PrevGeometry(t) = 0
+        NextAngle(t) = 0
+        NextGeometry(t) = 0
         CALL SprClearFrame(FrameStart + 2 * t)
         CALL SprClearFrame(FrameStart + 2 * t + 1)
         CALL SprFrame(t, FrameStart + 2 * t)
@@ -43,18 +50,18 @@ END SUB
 DIM NextUpdate AS BYTE
     NextUpdate = 0
 SUB SprBufUpdate(MaxUpdates AS BYTE) SHARED STATIC
-    FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
+    FOR t AS BYTE = 0 TO num_sprites-1
         CALL SprBufDrawGeometry(NextUpdate, NextGeometry(NextUpdate), NextAngle(NextUpdate)) 
         IF DrawCompleted THEN
             MaxUpdates = MaxUpdates - 1
             IF MaxUpdates=0 THEN 
                 NextUpdate = NextUpdate + 1
-                IF NextUpdate = MAX_NUM_SPRITES THEN NextUpdate = 0 
+                IF NextUpdate = num_sprites THEN NextUpdate = 0 
                 EXIT SUB
             END IF
         END IF
         NextUpdate = NextUpdate + 1
-        IF NextUpdate = MAX_NUM_SPRITES THEN NextUpdate = 0 
+        IF NextUpdate = num_sprites THEN NextUpdate = 0 
     NEXT t    
 END SUB
 
@@ -74,12 +81,11 @@ SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARE
 END SUB
 
 SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
-    ZP_B0 = SprFrame(SprNr) XOR 1
-    CALL SprClearFrame(ZP_B0)
+    CALL SprClearFrame(SprFrame(SprNr) XOR 1)
 END SUB
 
 SUB SprBufSwapAll() SHARED STATIC
-    FOR t AS BYTE = 0 TO 7
+    FOR t AS BYTE = 0 TO num_sprites-1
         CALL SprBufSwap(t)
     NEXT t
 END SUB

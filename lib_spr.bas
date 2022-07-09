@@ -1,3 +1,5 @@
+'INCLUDE "lib_memory.bas"
+
 REM **************************************
 REM LIBRARY CONVENTIONS
 REM   TRUE  = $ff
@@ -10,32 +12,18 @@ REM You must also update MAXSPR in ASM code
 CONST MAX_NUM_SPRITES = 16
 
 REM ****************************************************************************
-REM Must be called before other methods if VIC bank or videoram is moved
+REM Must be called before other methods to initialise sprite system
 REM ****************************************************************************
-DECLARE SUB SprInit() SHARED STATIC
+DECLARE SUB SprInit(NumSprites AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Define colors for multicolor sprites
 REM ****************************************************************************
 DECLARE SUB SprMultiColors(Color1 AS BYTE, Color2 AS BYTE) SHARED STATIC
 
-REM ****************************************************************************
-REM Copies sprite pattern from DATA AS BYTE statements to address specified by 
-REM given FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
-REM ****************************************************************************
-DECLARE SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC
-
-REM ****************************************************************************
-REM Creates new pattern from existing pattern by mirroring it horizontally.
-REM ****************************************************************************
-DECLARE SUB SprFlipXShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
-
-REM ****************************************************************************
-REM Creates new pattern from existing pattern by mirroring it vertically.
-REM ****************************************************************************
-DECLARE SUB SprFlipYShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
-
 DECLARE SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
+DECLARE SUB SprInitSynchro() SHARED STATIC
+DECLARE SUB SprInitMultiplex() SHARED STATIC
 
 REM ****************************************************************************
 REM Following methods set and get sprite properties
@@ -80,10 +68,11 @@ END TYPE
 REM **************************************
 REM INTERNAL FIELDS
 REM **************************************
-DIM vic_bank_addr AS WORD
-    vic_bank_addr = 0
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
+
+DIM num_sprites AS BYTE
+    num_sprites = MAX_NUM_SPRITES
 
 'DIM spr_reg_xy(MAX_NUM_SPRITES) AS TYPE_SPR_REG @$d000
 'DIM spr_reg_msb AS BYTE @$d010
@@ -98,15 +87,19 @@ DIM spr_reg_mc2 AS BYTE @$d026
 REM **************************************
 REM INTERNAL SPRITE DATA
 REM **************************************
-DIM SHARED spr_x(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED spr_y(MAX_NUM_SPRITES) AS BYTE 
+DIM spr_x(MAX_NUM_SPRITES) AS BYTE
+DIM spr_y(MAX_NUM_SPRITES) AS BYTE 
 DIM spr_c(MAX_NUM_SPRITES) AS BYTE
 DIM spr_f(MAX_NUM_SPRITES) AS BYTE
 
 DIM spr_yy(MAX_NUM_SPRITES) AS BYTE 
-DIM SHARED spr_e(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED spr_w(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED spr_h(MAX_NUM_SPRITES) AS BYTE
+DIM spr_e(MAX_NUM_SPRITES) AS BYTE
+DIM spr_w(MAX_NUM_SPRITES) AS BYTE
+DIM spr_h(MAX_NUM_SPRITES) AS BYTE
+DIM spr_2x(MAX_NUM_SPRITES) AS BYTE
+DIM spr_2y(MAX_NUM_SPRITES) AS BYTE
+DIM spr_mc(MAX_NUM_SPRITES) AS BYTE
+DIM spr_bg(MAX_NUM_SPRITES) AS BYTE
 
 REM **************************************
 REM INTERNAL HELPER
@@ -120,11 +113,12 @@ REM ****************************************************************************
 REM Call before using the library if you change VIC bank or screen memory 
 REM address
 REM ****************************************************************************
-SUB SprInit() SHARED STATIC
-    vic_bank_addr = 16384 * ((PEEK($dd00) AND %00000011) XOR %00000011)
+SUB SprInit(NumSprites AS BYTE) SHARED STATIC
+    num_sprites = NumSprites
     spr_ptrs = vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 
-    FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
+    FOR t AS BYTE = 0 TO num_sprites-1
+        spr_c(t) = 1
         spr_w(t) = 12
         spr_h(t) = 21
         spr_x(t) = 0
@@ -132,7 +126,17 @@ SUB SprInit() SHARED STATIC
         spr_yy(t) = 255
         spr_e(t) = 0
         SprCollision(t) = 0
+        spr_2x(t) = 0
+        spr_2y(t) = 0
+        spr_mc(t) = 0
+        spr_bg(t) = 0
     NEXT t
+
+    IF num_sprites < 9 THEN
+        CALL SprInitSynchro()
+    ELSE
+        CALL SprInitMultiplex()
+    END IF
 END SUB
 
 REM ****************************************************************************
@@ -144,31 +148,6 @@ REM ****************************************************************************
 SUB SprMultiColors(Color1 AS BYTE, Color2 AS BYTE) SHARED STATIC
     spr_reg_mc1 = Color1
     spr_reg_mc2 = Color2
-END SUB
-
-REM ****************************************************************************
-REM CALL SprImportShape(@PLAYER_SHIP, 255)
-REM CALL SprFrame(0, 255)
-REM ...
-REM PLAYER_SHIP:
-REM DATA AS BYTE 1,2,3,4,5...
-REM ****************************************************************************
-REM Copies sprite pattern from DATA AS BYTE statements to address specified by 
-REM given FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
-REM [Developer is responsible that the area is free]
-REM ****************************************************************************
-SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC
-    ASM
-        sei                     ; turn off interrupts  
-        dec 1                   ; can use also io memory for sprites
-        dec 1                   ; by disabling kernel and io
-    END ASM
-    MEMCPY SrcAddr, vic_bank_addr + SHL(CWORD(FramePtr), 6), 63
-    ASM
-        inc 1                   ; restore io, kernel and interrupts
-        inc 1
-        cli
-    END ASM
 END SUB
 
 SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
@@ -183,78 +162,6 @@ SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
         inc 1
         cli
     END ASM
-END SUB
-
-REM ****************************************************************************
-REM Creates new pattern from existing pattern by mirroring it horizontally.
-REM ****************************************************************************
-SUB SprFlipXShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
-    ZP_W0 = vic_bank_addr + SHL(CWORD(SrcFramePtr), 6)
-    ZP_W1 = vic_bank_addr + SHL(CWORD(DstFramePtr), 6)
-
-    DIM tmp AS BYTE
-    ASM
-        ldy #60
-flip_x_row:
-        lda ({ZP_W0}),y
-        sta {tmp}
-        lda #128
-flip_x_byte0:
-        asl {tmp}
-        ror
-        bcc flip_x_byte0
-        tax
-
-        iny
-        iny
-
-        lda ({ZP_W0}),y
-        sta {tmp}
-        txa
-        sta ({ZP_W1}),y
-        lda #128
-flip_x_byte2:
-        asl {tmp}
-        ror
-        bcc flip_x_byte2
-        tax
-
-        dey
-
-        lda ({ZP_W0}),y
-        sta {tmp}
-        lda #128
-flip_x_byte1:
-        asl {tmp}
-        ror
-        bcc flip_x_byte1
-        sta ({ZP_W1}),y
-
-        dey
-
-        txa
-        sta ({ZP_W1}),y
-
-        dey
-        dey
-        dey
-        bpl flip_x_row
-    END ASM
-END SUB
-
-REM ****************************************************************************
-REM Creates new pattern from existing pattern by mirroring it vertically.
-REM ****************************************************************************
-SUB SprFlipYShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
-    ZP_W0 = vic_bank_addr + SHL(CWORD(SrcFramePtr), 6)
-    ZP_W1 = vic_bank_addr + SHL(CWORD(DstFramePtr), 6) + 60
-    FOR t AS BYTE = 0 TO 63
-        POKE ZP_W1+2, PEEK(ZP_W0 + 2)
-        POKE ZP_W1+1, PEEK(ZP_W0 + 1)
-        POKE ZP_W1, PEEK(ZP_W0)
-        ZP_W0 = ZP_W0 + 3
-        ZP_W1 = ZP_W1 - 3
-    NEXT t
 END SUB
 
 REM ****************************************************************************
@@ -318,7 +225,6 @@ REM IF SprEnable(0) THEN PRINT "0: enabled"
 REM ****************************************************************************
 FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
     RETURN spr_e(SprNr)
-    'RETURN spr_reg_enable AND bit_pos(SprNr) <> 0
 END FUNCTION
 
 REM ****************************************************************************
@@ -326,19 +232,14 @@ REM INCLUDE "lib_types.bas"
 REM CALL SprDoubleX(0, TRUE)
 REM ****************************************************************************
 SUB SprDoubleX(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-'    IF Value THEN
-'        spr_reg_dx = spr_reg_dx OR bit_pos(SprNr)
-'    ELSE
-'        spr_reg_dx = spr_reg_dx AND NOT bit_pos(SprNr)
-'    END IF
+    spr_2x(SprNr) = Value
 END SUB
 
 REM ****************************************************************************
 REM IF SprDoubleX(0) THEN PRINT "width: 48"
 REM ****************************************************************************
 FUNCTION SprDoubleX AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN 0
-'    RETURN spr_reg_dx AND bit_pos(SprNr) <> 0
+    RETURN spr_2x(SprNr)
 END FUNCTION
 
 REM ****************************************************************************
@@ -346,19 +247,14 @@ REM INCLUDE "lib_types.bas"
 REM CALL SprDoubleY(0, TRUE)
 REM ****************************************************************************
 SUB SprDoubleY(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-'    IF Value THEN
-'        spr_reg_dy = spr_reg_dy OR bit_pos(SprNr)
-'    ELSE
-'        spr_reg_dy = spr_reg_dy AND NOT bit_pos(SprNr)
-'    END IF
+    spr_2y(SprNr) = Value
 END SUB
 
 REM ****************************************************************************
 REM IF SprDoubleY(0) THEN PRINT "height: 42"
 REM ****************************************************************************
 FUNCTION SprDoubleY AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN 0
-'    RETURN spr_reg_dy AND bit_pos(SprNr) <> 0
+    RETURN spr_2y(SprNr)
 END FUNCTION
 
 REM ****************************************************************************
@@ -370,7 +266,6 @@ REM with "ORIGIN" -directive or by "CALL SprImportShape(SrcAddr)""
 REM ****************************************************************************
 SUB SprFrame(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
     spr_f(SprNr) = FramePtr
-    'POKE spr_ptrs + SprNr, FramePtr
 END SUB
 
 REM ****************************************************************************
@@ -381,7 +276,6 @@ REM (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM ****************************************************************************
 FUNCTION SprFrame AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
     RETURN spr_f(SprNr)
-'    RETURN PEEK(spr_ptrs + SprNr)
 END FUNCTION
 
 REM ****************************************************************************
@@ -391,7 +285,6 @@ REM Set sprite's color. See lib_color.bas for color codes.
 REM ****************************************************************************
 SUB SprColor(SprNr AS BYTE, Color AS BYTE) SHARED STATIC OVERLOAD
     spr_c(SprNr) = Color
-    'POKE spr_ptrs + SprNr, FramePtr
 END SUB
 
 REM ****************************************************************************
@@ -401,7 +294,6 @@ REM Returns sprite's color. See lib_color.bas for color codes.
 REM ****************************************************************************
 FUNCTION SprColor AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
     RETURN spr_c(SprNr)
-'    RETURN PEEK(spr_ptrs + SprNr)
 END FUNCTION
 
 REM ****************************************************************************
@@ -465,23 +357,20 @@ REM ****************************************************************************
 REM Records sprite-sprite collisions with defined sprite to SprCollision(8) array
 REM ****************************************************************************
 SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
-    'DIM mask AS BYTE
     ASM
-MAXSPR = 16                            ;Maximum number of sprites
         ldy {SprNr}
-        lda {spr_e},y
-        bne spr_collision_detect
-
-        ldx #MAXSPR
-spr_collision_disabled_loop:
+        ldx {num_sprites}
         dex
+        lda {spr_e},y
+        bne spr_collision_loop
+
+spr_collision_disabled_loop:
         sta {SprCollision},x
-        bne spr_collision_disabled_loop
+        dex
+        bpl spr_collision_disabled_loop
 
-        jmp spr_check_collision_end
+        jmp spr_collision_end
 
-spr_collision_detect:
-        ldx #MAXSPR-1
 spr_collision_loop:
         lda {spr_e},x
         beq spr_check_no_coll
@@ -520,7 +409,7 @@ spr_check_no_coll:
         sta {SprCollision},x
         dex                                 ; Goes to next sprite
         bpl spr_collision_loop
-spr_check_collision_end:
+spr_collision_end:
         lda #0
         sta {SprCollision},y
     END ASM
@@ -536,7 +425,6 @@ REM Available at http://cadaver.github.io
 REM **************************************
 
 REM FAST variables for sprite multiplexing
-DIM numsprites AS BYTE FAST
 DIM sprupdateflag AS BYTE FAST
 DIM sortedsprites AS BYTE FAST
 DIM tempvariable AS BYTE FAST
@@ -544,20 +432,102 @@ DIM sprirqcounter AS BYTE FAST
 
 DIM sortorder(MAX_NUM_SPRITES) AS BYTE FAST
 
-SUB SpriteUpdate() SHARED STATIC
+SUB SpriteUpdate(Blocking AS BYTE) SHARED STATIC
     ASM
-                inc {sprupdateflag}             ;Signal to IRQ: sort the
-                                                ;sprites
+                inc {sprupdateflag}              ;Signal to IRQ: sort the
+                lda {blocking}                   ;sprites
+                beq non_blocking
 waitloop:       lda {sprupdateflag}             ;Wait until the flag turns back
                 bne waitloop                    ;to zero
+non_blocking:
     END ASM
 END SUB
 
-SUB SpriteInit() SHARED STATIC
-    numsprites = MAX_NUM_SPRITES
+SUB SprInitSynchro() SHARED STATIC
+    ASM
+IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
+
+;Routine to init the raster interrupt system
+                lda {spr_ptrs}
+                sta synchro_irq_sprf+1
+                lda {spr_ptrs}+1
+                sta synchro_irq_sprf+2
+
+                sei
+                lda #<synchro_irq
+                sta $0314
+                lda #>synchro_irq
+                sta $0315
+                lda #$7f                        ;CIA interrupt off
+                sta $dc0d
+                lda #$01                        ;Raster interrupt on
+                sta $d01a
+                lda $d011
+                and #%01111111                  ;High bit of interrupt position = 0
+                sta $d011
+                lda #IRQ1LINE                   ;Line where next IRQ happens
+                sta $d012
+                lda $dc0d                       ;Acknowledge IRQ (to be sure)
+                cli
+                jmp synchro_end
+
+;Raster interrupt 1. This is where sorting happens.
+synchro_irq:
+                dec $d019                       ;Acknowledge raster interrupt
+                lda {sprupdateflag}             ;New sprites to be sorted?
+                beq synchro_irq_exit
+                lda #$00
+                sta {sprupdateflag}
+
+                inc $d020
+                inc $d020
+                ldy #7
+                ldx #14
+synchro_loop:
+                lda {spr_x},y
+                asl
+                sta $d000,x
+                rol $d010
+
+                lda {spr_y},y
+                sta $d001,x
+
+                lda {spr_c},y
+                sta $d027,y
+
+                lda {spr_f},y
+synchro_irq_sprf:
+                sta {spr_ptrs},y
+
+                lda {spr_e},y
+                rol
+                rol $d015
+
+                lda {spr_2x},y
+                rol
+                rol $d01d
+
+                lda {spr_2y},y
+                rol
+                rol $d017
+
+                dex
+                dex
+                dey
+                bpl synchro_loop
+                dec $d020
+                dec $d020
+
+synchro_irq_exit:
+                jmp $ea81
+synchro_end:
+    END ASM
+END SUB
+
+SUB SprInitMultiplex() SHARED STATIC
     sortedsprites = 0
     sprupdateflag = 0
-    FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
+    FOR t AS BYTE = 0 TO num_sprites-1
         sortorder(t) = t
     NEXT t
 
@@ -588,7 +558,7 @@ initraster:
                 sta $d012
                 lda $dc0d                       ;Acknowledge IRQ (to be sure)
                 cli
-                jmp the_end
+                jmp multiplex_end
 
 ;Raster interrupt 1. This is where sorting happens.
 irq1:           dec $d019                       ;Acknowledge raster interrupt
@@ -606,7 +576,7 @@ irq1:           dec $d019                       ;Acknowledge raster interrupt
                 beq irq1_nonewsprites
                 lda #$00
                 sta {sprupdateflag}
-                lda {numsprites}                ;Take number of sprites given by the main program
+                lda {num_sprites}                ;Take number of sprites given by the main program
                 sta {sortedsprites}             ;If it's zero, don't need to
                 bne irq1_beginsort              ;sort
 
@@ -631,17 +601,9 @@ irq1_nospritesatall:
                 jmp $ea81
 
 irq1_beginsort: inc $d020
-                ldx #MAXSPR
-                dex
-                cpx {sortedsprites}
-                bcc irq1_cleardone
-                ;lda #$ff                        ;Mark unused sprites with the
-irq1_clearloop: ;sta {spr_y},x                    ;lowest Y-coordinate ($ff);
-                ;dex                             ;these will "fall" to the
-                ;cpx {sortedsprites}             ;bottom of the sorted table
-                ;bcs irq1_clearloop
-irq1_cleardone: ldx #$00
-irq1_sortloop:  ldy {sortorder}+1,x             ;Sorting code. Algorithm
+                ldx #$01
+irq1_sortloop:  dex
+                ldy {sortorder}+1,x             ;Sorting code. Algorithm
                 lda {spr_y},y                    ;ripped from Dragon Breed :-)
                 ldy {sortorder},x
                 cmp {spr_y},y
@@ -658,9 +620,12 @@ irq1_sortswap:  lda {sortorder}+1,x
                 ldy {sortorder},x
                 cmp {spr_y},y
                 bcc irq1_sortswap
-irq1_sortreload:ldx #$00
-irq1_sortskip:  inx
-                cpx #MAXSPR-1
+irq1_sortreload:
+                ldx #$00
+irq1_sortskip:
+                inx
+                inx
+                cpx {num_sprites}
                 bcc irq1_sortloop
                 ldx {sortedsprites}
                 lda #$ff                        ;$ff is the endmark for the
@@ -782,7 +747,7 @@ ortbl:          dc.b 1
                 dc.b 64
                 dc.b 255-128
                 dc.b 128
-the_end:
+multiplex_end:
                 nop
     END ASM
 END SUB

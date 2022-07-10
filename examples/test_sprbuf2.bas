@@ -74,7 +74,7 @@ GAME_LOOP:
     FOR t AS BYTE = 0 TO NumSprites-1
         DIM a AS BYTE
             a = Angle - Trigger * t
-        CALL SprBufRequestGeometry(t, Shape(t), a + 4)
+        CALL SprBufRequestGeometry(t, Shape(t), a + 8)
         CALL SprXY(t, X(t), Y(t))
 
         X(t) = 1 + X(t) + RotX((a AND %11111000) OR 1) - 11
@@ -83,8 +83,8 @@ GAME_LOOP:
     NEXT t
     Angle = Angle + 1
     CALL SprBufUpdate(NumUpdates)
-    CALL SprBufSwapAll()
     CALL SpriteUpdate(TRUE)
+    CALL SprBufSwapAll()
 GOTO GAME_LOOP
 
 GeomShip0:

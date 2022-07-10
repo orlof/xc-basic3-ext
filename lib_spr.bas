@@ -70,7 +70,7 @@ REM ****************************************************************************
 DECLARE SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
 DECLARE SUB SprDoubleYAll(Value AS BYTE) SHARED STATIC
 DECLARE SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
-DECLARE SUB SprBackgroundAll(Value AS BYTE) SHARED STATIC
+DECLARE SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Update SprCollision array with TRUE/FALSE values to identify which
@@ -532,6 +532,8 @@ irq1_notmorethan8:
 irq1_nospritesatall:
                 jmp $ea81
 
+irq1_update_sprf:
+
 irq1_beginsort: ;inc $d020                      ; debug
                 ldx #$01
 irq1_sortloop:  dex
@@ -572,8 +574,6 @@ irq1_sortloop3: ldy {sortorder},x               ;Final loop:
                 sta sortsprf,x
                 lda {SprColor},y
                 sta sortsprc,x
-                lda {SprDoubleX},y
-                sta sortsprx2,x
 
                 inx
                 cpx {sortedsprites}

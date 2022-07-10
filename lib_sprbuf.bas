@@ -5,7 +5,6 @@ CONST MAX_NUM_SPRITES = 16
 
 DECLARE SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
-DECLARE SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
 
 REM **************************************
 REM INTERNAL FIELDS
@@ -73,14 +72,10 @@ SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARE
     ZP_B0 = SprFrame(SprNr) XOR 1
     CALL SprClearFrame(ZP_B0)
     CALL SprGeomDraw(ZP_B0, GeometryAddr, Angle)
+    SwapAvailable(SprNr) = $ff
     PrevAngle(SprNr) = Angle
     PrevGeometry(SprNr) = GeometryAddr
-    SwapAvailable(SprNr) = $ff
     DrawCompleted = $ff
-END SUB
-
-SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
-    CALL SprClearFrame(SprFrame(SprNr) XOR 1)
 END SUB
 
 SUB SprBufSwapAll() SHARED STATIC

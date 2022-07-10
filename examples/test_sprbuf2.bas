@@ -6,7 +6,7 @@ INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
-CONST MAX_NUM_SPRITES = 16
+CONST MAX_NUM_SPRITES = 8
 
 CALL Scr_Clear()
 ScreenColor = COLOR_BLACK
@@ -74,17 +74,16 @@ GAME_LOOP:
     FOR t AS BYTE = 0 TO NumSprites-1
         DIM a AS BYTE
             a = Angle - Trigger * t
-        CALL SprBufRequestGeometry(t, Shape(t), a + 8)
         CALL SprXY(t, X(t), Y(t))
-
+        CALL SprBufRequestGeometry(t, Shape(t), a + 8)
         X(t) = 1 + X(t) + RotX((a AND %11111000) OR 1) - 11
         IF X(t) >= 320 THEN X(t) = -24
         Y(t) = Y(t) + RotY((a AND %11111000) OR 1) - 10
     NEXT t
     Angle = Angle + 1
     CALL SprBufUpdate(NumUpdates)
-    CALL SpriteUpdate(TRUE)
     CALL SprBufSwapAll()
+    CALL SpriteUpdate(TRUE)
 GOTO GAME_LOOP
 
 GeomShip0:

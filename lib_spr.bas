@@ -60,7 +60,22 @@ DECLARE SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
 DECLARE FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
-REM Set x, y position of a sprite
+REM CALL SprXY(0, 0, 0)
+REM ****************************************************************************
+REM Set sprite's top left corner to screen pixel (x, y).
+REM Bits [8:0] are used for x coordinate.
+REM 
+REM                 left border   fully visible   right border
+REM x normal          x <= -24    0 <= x < 296      x >= 320
+REM x expanded        x <= -48    0 <= x < 272      x >= 320
+REM 
+REM                  top border   fully visible   bottom border
+REM y normal          y <= -21    0 <= y < 235      y >= 200
+REM y expanded        y <= -42    0 <= y < 214      y >= 200
+REM 
+REM ****************************************************************************
+REM NOTE If you need collision detection, you MUST ALWAYS use this method to 
+REM set sprite position!
 REM ****************************************************************************
 DECLARE SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
 
@@ -75,6 +90,11 @@ DECLARE SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
 REM ****************************************************************************
 REM Update SprCollision array with TRUE/FALSE values to identify which
 REM sprites collide with SprNr
+REM 
+REM CALL SprRecordCollisions(0)
+REM FOR t AS BYTE = 1 TO 7
+REM     PRINT t, SprCollision(t)
+REM NEXT t
 REM ****************************************************************************
 DECLARE SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
 
@@ -129,7 +149,7 @@ DIM num_sprites AS BYTE
 DIM spr_reg_mc AS BYTE @$d01c
 DIM spr_reg_dx AS BYTE @$d01d
 DIM spr_reg_dy AS BYTE @$d017
-DIM spr_reg_back AS BYTE @$d01b
+DIM spr_reg_bg AS BYTE @$d01b
 
 DIM spr_x(MAX_NUM_SPRITES) AS BYTE
 DIM spr_y(MAX_NUM_SPRITES) AS BYTE 
@@ -145,13 +165,13 @@ DIM sprirqcounter AS BYTE FAST
 DIM sortorder(MAX_NUM_SPRITES) AS BYTE FAST
 
 SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
-    spr_reg_dx = $ff
+    spr_reg_dx = Value
     MEMSET @SprDoubleX, MAX_NUM_SPRITES, Value
 END SUB
 
 SUB SprDoubleYAll(Value AS BYTE) SHARED STATIC
     spr_reg_dy = Value
-    MEMSET @SprDoubleX, MAX_NUM_SPRITES, Value
+    MEMSET @SprDoubleY, MAX_NUM_SPRITES, Value
 END SUB
 
 SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
@@ -192,23 +212,9 @@ SUB SprInit(Mode AS BYTE) SHARED STATIC
 END SUB
 
 SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
-    ASM
-        sei                     ; turn off interrupts  
-        dec 1                   ; can use also io memory for sprites
-        dec 1                   ; by disabling kernel and io
-    END ASM
     MEMSET vic_bank_addr + SHL(CWORD(FramePtr), 6), 63, 0
-    ASM
-        inc 1                   ; restore io, kernel and interrupts
-        inc 1
-        cli
-    END ASM
 END SUB
 
-REM ****************************************************************************
-REM INCLUDE "lib_types.bas"
-REM CALL SprEnable(0, TRUE)
-REM ****************************************************************************
 SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
     IF Value THEN 
         IF spr_e(SprNr) = 0 THEN
@@ -223,31 +229,10 @@ SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
     END IF
 END SUB
 
-REM ****************************************************************************
-REM IF SprEnable(0) THEN PRINT "0: enabled"
-REM ****************************************************************************
 FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
     RETURN spr_e(SprNr)
 END FUNCTION
 
-REM ****************************************************************************
-REM CALL SprXY(0, 0, 0)
-REM ****************************************************************************
-REM Set sprite's top left corner to screen pixel (x, y).
-REM Bits [8:0] are used for x coordinate.
-REM 
-REM                 left border   fully visible   right border
-REM x normal          x <= -24    0 <= x < 296      x >= 320
-REM x expanded        x <= -48    0 <= x < 272      x >= 320
-REM 
-REM                  top border   fully visible   bottom border
-REM y normal          y <= -21    0 <= y < 235      y >= 200
-REM y expanded        y <= -42    0 <= y < 214      y >= 200
-REM 
-REM ****************************************************************************
-REM NOTE If you need collision detection, you MUST ALWAYS use this method to 
-REM set sprite position!
-REM ****************************************************************************
 SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
     ASM
         ldx {SprNr}
@@ -282,14 +267,6 @@ spr_xy_no_bad_zone:
     END ASM
 END SUB
 
-REM ****************************************************************************
-REM CALL SprRecordCollisions(0)
-REM FOR t AS BYTE = 1 TO 7
-REM     PRINT t, SprCollision(t)
-REM NEXT t
-REM ****************************************************************************
-REM Records sprite-sprite collisions with defined sprite to SprCollision(8) array
-REM ****************************************************************************
 SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
     ASM
         ldy {SprNr}
@@ -457,6 +434,8 @@ synchro_end:
 END SUB
 
 SUB spr_init_mode16() STATIC
+    DIM last AS BYTE
+    last = MAX_NUM_SPRITES - 1
     sortedsprites = 0
     sprupdateflag = 0
     FOR t AS BYTE = 0 TO num_sprites-1
@@ -535,8 +514,8 @@ irq1_nospritesatall:
 irq1_update_sprf:
 
 irq1_beginsort: ;inc $d020                      ; debug
-                ldx #$01
-irq1_sortloop:  dex
+                ldx #$00
+irq1_sortloop:
                 ldy {sortorder}+1,x             ;Sorting code. Algorithm
                 lda {spr_y},y                    ;ripped from Dragon Breed :-)
                 ldy {sortorder},x
@@ -558,8 +537,7 @@ irq1_sortreload:
                 ldx #$00
 irq1_sortskip:
                 inx
-                inx
-                cpx {num_sprites}
+                cpx {last}
                 bcc irq1_sortloop
                 ldx {sortedsprites}
                 lda #$ff                        ;$ff is the endmark for the
@@ -598,18 +576,19 @@ irq2_spriteloop:lda sortspry,y
                 lda sortsprx,y
                 asl
                 sta $d000,x
-                lda $d010
                 bcc irq2_lowmsb
+                lda $d010
                 ora ortbl,x
-                jmp irq2_msbok
-irq2_lowmsb:
-                and andtbl,x
-irq2_msbok:     
                 sta $d010
+                jmp irq2_msbok
+irq2_lowmsb:    lda $d010
+                and andtbl,x
+                sta $d010
+irq2_msbok:     
                 ldx physicalsprtbl1,y           ;Physical sprite number x 1
                 lda sortsprf,y
 irq2_sprf:
-                sta {spr_ptrs},x              ;for color & frame
+                sta $dead,x              ;for color & frame
                 lda sortsprc,y
                 sta $d027,x
                 
@@ -631,6 +610,7 @@ irq2_lastspr:   lda #<irq1                      ;Was the last sprite,
                 lda #IRQ1LINE
                 sta $d012
                 jmp $ea81
+
 
 sortsprx:       ds.b MAXSPR,0                   ;Sorted sprite table
 sortspry:       ds.b MAXSPR+1,0                 ;Must be one byte extra for the $ff endmark

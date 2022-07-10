@@ -28,17 +28,7 @@ REM given FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM [Developer is responsible that the area is free]
 REM ****************************************************************************
 SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC
-    ASM
-        sei                     ; turn off interrupts  
-        dec 1                   ; can use also io memory for sprites
-        dec 1                   ; by disabling kernel and io
-    END ASM
     MEMCPY SrcAddr, vic_bank_addr + SHL(CWORD(FramePtr), 6), 63
-    ASM
-        inc 1                   ; restore io, kernel and interrupts
-        inc 1
-        cli
-    END ASM
 END SUB
 
 REM ****************************************************************************

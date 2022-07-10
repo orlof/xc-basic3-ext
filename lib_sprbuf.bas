@@ -3,7 +3,11 @@
 
 CONST MAX_NUM_SPRITES = 16
 
+DECLARE SUB SprBufInit(FrameStart AS BYTE, NumSprites AS BYTE) SHARED STATIC
+DECLARE SUB SprBufRequestGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+DECLARE SUB SprBufUpdate(MaxUpdates AS BYTE) SHARED STATIC
 DECLARE SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+DECLARE SUB SprBufSwapAll() SHARED STATIC
 DECLARE SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
 
 REM **************************************
@@ -17,7 +21,6 @@ DIM PrevGeometry(MAX_NUM_SPRITES) AS WORD
 DIM NextAngle(MAX_NUM_SPRITES) AS BYTE
 DIM NextGeometry(MAX_NUM_SPRITES) AS WORD
 
-DIM DrawCompleted AS BYTE
 DIM num_sprites AS BYTE
 
 REM ****************************************************************************
@@ -49,33 +52,26 @@ DIM NextUpdate AS BYTE
     NextUpdate = 0
 SUB SprBufUpdate(MaxUpdates AS BYTE) SHARED STATIC
     FOR t AS BYTE = 0 TO num_sprites-1
-        CALL SprBufDrawGeometry(NextUpdate, NextGeometry(NextUpdate), NextAngle(NextUpdate)) 
-        IF DrawCompleted THEN
+        IF NextGeometry(NextUpdate) <> 0 AND (PrevAngle(NextUpdate) <> NextAngle(NextUpdate) OR PrevGeometry(NextUpdate) <> NextGeometry(NextUpdate)) THEN
+            CALL SprBufDrawGeometry(NextUpdate, NextGeometry(NextUpdate), NextAngle(NextUpdate)) 
             MaxUpdates = MaxUpdates - 1
-            IF MaxUpdates=0 THEN 
-                NextUpdate = NextUpdate + 1
-                IF NextUpdate = num_sprites THEN NextUpdate = 0 
-                EXIT SUB
-            END IF
         END IF
+
         NextUpdate = NextUpdate + 1
         IF NextUpdate = num_sprites THEN NextUpdate = 0 
+
+        IF MaxUpdates=0 THEN EXIT SUB
     NEXT t    
 END SUB
 
 SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-    DrawCompleted = $00
     Angle = Angle AND %11111000
-    IF GeometryAddr = 0 THEN EXIT SUB
-    IF PrevAngle(SprNr) = Angle AND PrevGeometry(SprNr) = GeometryAddr THEN EXIT SUB
-
     ZP_B0 = SprFrame(SprNr) XOR 1
     CALL SprClearFrame(ZP_B0)
     CALL SprGeomDraw(ZP_B0, GeometryAddr, Angle)
     SwapAvailable(SprNr) = $ff
     PrevAngle(SprNr) = Angle
     PrevGeometry(SprNr) = GeometryAddr
-    DrawCompleted = $ff
 END SUB
 
 SUB SprBufSwapAll() SHARED STATIC

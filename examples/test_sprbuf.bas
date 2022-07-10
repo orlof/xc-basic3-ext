@@ -2,7 +2,7 @@ INCLUDE "../lib_color.bas"
 INCLUDE "../lib_memory.bas"
 INCLUDE "../lib_types.bas"
 INCLUDE "../lib_spr.bas"
-INCLUDE "../lib_sprgeom.bas"
+INCLUDE "../lib_spr_geom.bas"
 INCLUDE "../lib_scr.bas"
 
 CALL SprGeomPrepare(@GeomTriangle)

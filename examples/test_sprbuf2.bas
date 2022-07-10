@@ -6,7 +6,7 @@ INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
-CONST MAX_NUM_SPRITES = 8
+CONST MAX_NUM_SPRITES = 4
 
 CALL Scr_Clear()
 ScreenColor = COLOR_BLACK
@@ -35,19 +35,19 @@ NEXT t
 
 CALL SprInit(MAX_NUM_SPRITES)
 CALL SprBufInit(256 - 2 * MAX_NUM_SPRITES, MAX_NUM_SPRITES)
-print "init"
+print "init "; MAX_NUM_SPRITES
 
 DIM X(MAX_NUM_SPRITES) AS WORD
 DIM Y(MAX_NUM_SPRITES) AS BYTE
 
 FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
     IF t = (ScreenColor AND %111) THEN
-        CALL SprColor(t, t XOR %100)
+        SprColor(t) = t XOR %100
     ELSE
-        CALL SprColor(t, t)
+        SprColor(t) = t
     END IF
-    CALL SprDoubleX(t, (t AND 1) = 0)
-    CALL SprDoubleY(t, (t AND 2) = 0)
+    SprDoubleX(t) = (MAX_NUM_SPRITES <= 8)
+    SprDoubleY(t) = (MAX_NUM_SPRITES <= 8)
     X(t) = 130
     Y(t) = 160
 NEXT t
@@ -58,7 +58,9 @@ DIM Angle AS BYTE
     Angle = 0
 DIM Trigger AS BYTE
     Trigger = 256 / MAX_NUM_SPRITES
-PRINT Trigger
+DIM NumUpdates AS BYTE
+    NumUpdates = 2
+    IF MAX_NUM_SPRITES <= 8 THEN NumUpdates = 1
 
 print "start"
 GAME_LOOP:
@@ -77,7 +79,7 @@ GAME_LOOP:
         Y(t) = Y(t) + RotY((a AND %11111000) OR 1) - 10
     NEXT t
     Angle = Angle + 1
-    CALL SprBufUpdate(1)
+    CALL SprBufUpdate(NumUpdates)
     CALL SprBufSwapAll()
     CALL SpriteUpdate(TRUE)
 GOTO GAME_LOOP

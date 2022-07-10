@@ -10,7 +10,6 @@ DECLARE SUB SprBufClear(SprNr AS BYTE) SHARED STATIC
 REM **************************************
 REM INTERNAL FIELDS
 REM **************************************
-DIM ZP_W0 AS WORD FAST
 DIM ZP_B0 AS BYTE FAST
 
 DIM SwapAvailable(MAX_NUM_SPRITES) AS BYTE
@@ -38,7 +37,7 @@ SUB SprBufInit(FrameStart AS BYTE, NumSprites AS BYTE) SHARED STATIC
         NextGeometry(t) = 0
         CALL SprClearFrame(FrameStart + 2 * t)
         CALL SprClearFrame(FrameStart + 2 * t + 1)
-        CALL SprFrame(t, FrameStart + 2 * t)
+        SprFrame(t) = FrameStart + 2 * t
     NEXT t
 END SUB
 
@@ -92,7 +91,7 @@ END SUB
 
 SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
     IF SwapAvailable(SprNr) THEN
-        CALL SprFrame(SprNr, SprFrame(SprNr) XOR 1)
+        SprFrame(SprNr) = SprFrame(SprNr) XOR 1
         SwapAvailable(SprNr) = $00
     END IF
 END SUB        

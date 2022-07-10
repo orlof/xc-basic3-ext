@@ -31,12 +31,6 @@ REM ****************************************************************************
 DECLARE SUB SprConfig(SprNr AS BYTE, IsMultiColor AS BYTE, DoubleX AS BYTE, DoubleY AS BYTE, Background AS BYTE, Color AS BYTE) SHARED STATIC
 DECLARE SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
 DECLARE FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB SprDoubleX(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION SprDoubleX AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB SprDoubleY(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION SprDoubleY AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB SprFrame(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION SprFrame AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
 REM Set x, y position of sprite.
@@ -89,23 +83,17 @@ REM INTERNAL SPRITE DATA
 REM **************************************
 DIM spr_x(MAX_NUM_SPRITES) AS BYTE
 DIM spr_y(MAX_NUM_SPRITES) AS BYTE 
-DIM spr_c(MAX_NUM_SPRITES) AS BYTE
-DIM spr_f(MAX_NUM_SPRITES) AS BYTE
-
 DIM spr_yy(MAX_NUM_SPRITES) AS BYTE 
 DIM spr_e(MAX_NUM_SPRITES) AS BYTE
-DIM spr_w(MAX_NUM_SPRITES) AS BYTE
-DIM spr_h(MAX_NUM_SPRITES) AS BYTE
-DIM spr_2x(MAX_NUM_SPRITES) AS BYTE
-DIM spr_2y(MAX_NUM_SPRITES) AS BYTE
-DIM spr_mc(MAX_NUM_SPRITES) AS BYTE
-DIM spr_bg(MAX_NUM_SPRITES) AS BYTE
 
-REM **************************************
-REM INTERNAL HELPER
-REM **************************************
-DIM ZP_W0 AS WORD FAST
-DIM ZP_W1 AS WORD FAST
+DIM SHARED SprColor(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprFrame(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprWidth(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprHeight(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprDoubleX(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprDoubleY(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprMultiColor(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprBackground(MAX_NUM_SPRITES) AS BYTE
 
 REM ****************************************************************************
 REM CALL SprInit()
@@ -118,18 +106,19 @@ SUB SprInit(NumSprites AS BYTE) SHARED STATIC
     spr_ptrs = vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 
     FOR t AS BYTE = 0 TO num_sprites-1
-        spr_c(t) = 1
-        spr_w(t) = 12
-        spr_h(t) = 21
         spr_x(t) = 0
         spr_y(t) = 255
         spr_yy(t) = 255
         spr_e(t) = 0
+
+        SprColor(t) = 1
+        SprWidth(t) = 12
+        SprHeight(t) = 21
         SprCollision(t) = 0
-        spr_2x(t) = 0
-        spr_2y(t) = 0
-        spr_mc(t) = 0
-        spr_bg(t) = 0
+        SprDoubleX(t) = 0
+        SprDoubleY(t) = 0
+        SprMultiColor(t) = 0
+        SprBackground(t) = 0
     NEXT t
 
     IF num_sprites < 9 THEN
@@ -181,24 +170,24 @@ SUB SprConfig(SprNr AS BYTE, IsMultiColor AS BYTE, DoubleX AS BYTE, DoubleY AS B
     'END IF
     'IF DoubleX THEN
     '    spr_reg_dx = spr_reg_dx OR bit
-    '    spr_w(SprNr) = 24
+    '    SprWidth(SprNr) = 24
     'ELSE
     '    spr_reg_dx = spr_reg_dx AND NOT bit
-    '    spr_w(SprNr) = 12
+    '    SprWidth(SprNr) = 12
     'END IF
     'IF DoubleY THEN
     '    spr_reg_dy = spr_reg_dy OR bit
-    '    spr_h(SprNr) = 42
+    '    SprHeight(SprNr) = 42
     'ELSE
     '    spr_reg_dy = spr_reg_dy AND NOT bit
-    '    spr_h(SprNr) = 21
+    '    SprHeight(SprNr) = 21
     'END IF
     'IF Background THEN
     '    spr_reg_back = spr_reg_back OR bit
     'ELSE
     '    spr_reg_back = spr_reg_back AND NOT bit
     'END IF
-    spr_c(SprNr) = Color
+    SprColor(SprNr) = Color
     'SprColor(SprNr) = Color
 END SUB
 
@@ -225,75 +214,6 @@ REM IF SprEnable(0) THEN PRINT "0: enabled"
 REM ****************************************************************************
 FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
     RETURN spr_e(SprNr)
-END FUNCTION
-
-REM ****************************************************************************
-REM INCLUDE "lib_types.bas"
-REM CALL SprDoubleX(0, TRUE)
-REM ****************************************************************************
-SUB SprDoubleX(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-    spr_2x(SprNr) = Value
-END SUB
-
-REM ****************************************************************************
-REM IF SprDoubleX(0) THEN PRINT "width: 48"
-REM ****************************************************************************
-FUNCTION SprDoubleX AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_2x(SprNr)
-END FUNCTION
-
-REM ****************************************************************************
-REM INCLUDE "lib_types.bas"
-REM CALL SprDoubleY(0, TRUE)
-REM ****************************************************************************
-SUB SprDoubleY(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-    spr_2y(SprNr) = Value
-END SUB
-
-REM ****************************************************************************
-REM IF SprDoubleY(0) THEN PRINT "height: 42"
-REM ****************************************************************************
-FUNCTION SprDoubleY AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_2y(SprNr)
-END FUNCTION
-
-REM ****************************************************************************
-REM CALL spr_shape(0, 192)
-REM ****************************************************************************
-REM Set sprite's FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
-REM Make sure to place the sprite pattern data to this memory area either
-REM with "ORIGIN" -directive or by "CALL SprImportShape(SrcAddr)""
-REM ****************************************************************************
-SUB SprFrame(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC OVERLOAD
-    spr_f(SprNr) = FramePtr
-END SUB
-
-REM ****************************************************************************
-REM PRINT "Sprite 0 address "; 64 * SprFrame(0)
-REM ****************************************************************************
-REM Returns sprite's FramePtr.
-REM (16384 * VIC_BANK + 64 * FramePtr = dest_address)
-REM ****************************************************************************
-FUNCTION SprFrame AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_f(SprNr)
-END FUNCTION
-
-REM ****************************************************************************
-REM CALL SprColor(0, COLOR_WHITE)
-REM ****************************************************************************
-REM Set sprite's color. See lib_color.bas for color codes.
-REM ****************************************************************************
-SUB SprColor(SprNr AS BYTE, Color AS BYTE) SHARED STATIC OVERLOAD
-    spr_c(SprNr) = Color
-END SUB
-
-REM ****************************************************************************
-REM PRINT "Sprite 0 color "; SprColor(0)
-REM ****************************************************************************
-REM Returns sprite's color. See lib_color.bas for color codes.
-REM ****************************************************************************
-FUNCTION SprColor AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_c(SprNr)
 END FUNCTION
 
 REM ****************************************************************************
@@ -381,11 +301,11 @@ spr_collision_loop:
         bcs spr_dy_positive
         eor #$ff                            ; Negate result
         adc #1
-        cmp {spr_h},x                       ; Compare distance to enemy height
+        cmp {SprHeight},x                       ; Compare distance to enemy height
         jmp spr_check_y_branch
 
 spr_dy_positive:
-        cmp {spr_h},y                       ; Compare distance to player height
+        cmp {SprHeight},y                       ; Compare distance to player height
 spr_check_y_branch:
         bcs spr_check_no_coll
 
@@ -395,11 +315,11 @@ spr_check_y_branch:
         bcs spr_dx_positive
         eor #$ff                            ; Negate result
         adc #1
-        cmp {spr_w},x                       ; compare distance to enemy width
+        cmp {SprWidth},x                       ; compare distance to enemy width
         jmp spr_check_x_branch
 
 spr_dx_positive:
-        cmp {spr_w},y                       ; Compare distance to player width
+        cmp {SprWidth},y                       ; Compare distance to player width
 spr_check_x_branch:
         bcs spr_check_no_coll
         lda #$ff
@@ -479,8 +399,7 @@ synchro_irq:
                 lda #$00
                 sta {sprupdateflag}
 
-                inc $d020
-                inc $d020
+                ;inc $d020                       ; debug
                 ldy #7
                 ldx #14
 synchro_loop:
@@ -492,10 +411,10 @@ synchro_loop:
                 lda {spr_y},y
                 sta $d001,x
 
-                lda {spr_c},y
+                lda {SprColor},y
                 sta $d027,y
 
-                lda {spr_f},y
+                lda {SprFrame},y
 synchro_irq_sprf:
                 sta {spr_ptrs},y
 
@@ -503,20 +422,27 @@ synchro_irq_sprf:
                 rol
                 rol $d015
 
-                lda {spr_2x},y
+                lda {SprDoubleX},y
                 rol
                 rol $d01d
 
-                lda {spr_2y},y
+                lda {SprDoubleY},y
                 rol
                 rol $d017
+
+                lda {SprMultiColor},y
+                rol
+                rol $d01c
+
+                lda {SprBackground},y
+                rol
+                rol $d01b
 
                 dex
                 dex
                 dey
                 bpl synchro_loop
-                dec $d020
-                dec $d020
+                ;dec $d020                       ; debug
 
 synchro_irq_exit:
                 jmp $ea81
@@ -600,7 +526,7 @@ irq1_notmorethan8:
 irq1_nospritesatall:
                 jmp $ea81
 
-irq1_beginsort: inc $d020
+irq1_beginsort: ;inc $d020                      ; debug
                 ldx #$01
 irq1_sortloop:  dex
                 ldy {sortorder}+1,x             ;Sorting code. Algorithm
@@ -636,15 +562,15 @@ irq1_sortloop3: ldy {sortorder},x               ;Final loop:
                 sta sortspry,x                  ;the sorted table
                 lda {spr_x},y
                 sta sortsprx,x
-                lda {spr_f},y
+                lda {SprFrame},y
                 sta sortsprf,x
-                lda {spr_c},y
+                lda {SprColor},y
                 sta sortsprc,x
 
                 inx
                 cpx {sortedsprites}
                 bcc irq1_sortloop3
-                dec $d020
+                ;dec $d020                       ; debug
                 jmp irq1_nonewsprites
 
 ;Raster interrupt 2. This is where sprite displaying happens

@@ -1,13 +1,10 @@
-DECLARE SUB SprGeomInit() SHARED STATIC
+'INCLUDE "lib_memory.bas"
+
 DECLARE SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprGeomLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
 DECLARE SUB SprGeomPrepare(GeometryAddr AS WORD) SHARED STATIC
 DECLARE SUB _DrawLine() STATIC
 
-DIM VicBank AS WORD
-    VicBank = 0
-
-DIM ZP_W0 AS WORD FAST
 DIM sprite_line_x1 AS BYTE FAST
 DIM sprite_line_y1 AS BYTE FAST
 DIM sprite_line_x2 AS BYTE FAST
@@ -23,10 +20,6 @@ DIM pixel_mask(24) AS BYTE @_pixel_mask
 
 CONST END_SHAPE  = $10
 CONST NO_DRAW    = $20
-
-SUB SprGeomInit() SHARED STATIC
-    VicBank = 16384 * ((PEEK($dd00) AND %00000011) XOR %00000011)
-END SUB
 
 REM ShapePrepare converts human friendly data to packet polyline format.
 REM Data has a byte pair for each Point. First byte represents the Angle
@@ -55,7 +48,7 @@ SUB SprGeomPrepare(GeometryAddr AS WORD) SHARED STATIC
 END SUB
 
 SUB SprGeomLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
-    ZP_W0 = VicBank + SHL(CWORD(FramePtr), 6)
+    ZP_W0 = vic_bank_addr + SHL(CWORD(FramePtr), 6)
     sprite_line_x1 = x0
     sprite_line_y1 = y0
     sprite_line_x2 = x1
@@ -222,7 +215,7 @@ REM Special Values occupy unused Angles in Radial 0 circle and thus center point
 REM must always be addressed with 0, 0 - even thou in theory all angles with
 REM Radial 0 represent same point (center). 
 SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-    ZP_W0 = VicBank + SHL(CWORD(FramePtr), 6)
+    ZP_W0 = vic_bank_addr + SHL(CWORD(FramePtr), 6)
     Angle = Angle AND %11111000
 
     DIM Index AS BYTE

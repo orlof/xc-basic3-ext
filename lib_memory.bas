@@ -3,6 +3,9 @@ REM
 REM ****************************************************************************
 DECLARE SUB MemoryVicBank(BankNro AS BYTE) SHARED STATIC
 
+DIM SHARED ZP_W0 AS WORD FAST
+DIM SHARED ZP_W1 AS WORD FAST
+
 REM **************************************
 REM INTERNAL FIELDS
 REM **************************************

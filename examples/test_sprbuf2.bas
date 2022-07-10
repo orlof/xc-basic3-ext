@@ -6,7 +6,7 @@ INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
-CONST MAX_NUM_SPRITES = 4
+CONST MAX_NUM_SPRITES = 16
 
 CALL Scr_Clear()
 ScreenColor = COLOR_BLACK
@@ -37,7 +37,7 @@ CALL SprInit(MAX_NUM_SPRITES)
 CALL SprBufInit(256 - 2 * MAX_NUM_SPRITES, MAX_NUM_SPRITES)
 print "init "; MAX_NUM_SPRITES
 
-DIM X(MAX_NUM_SPRITES) AS WORD
+DIM X(MAX_NUM_SPRITES) AS INT
 DIM Y(MAX_NUM_SPRITES) AS BYTE
 
 FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
@@ -46,11 +46,13 @@ FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
     ELSE
         SprColor(t) = t
     END IF
-    SprDoubleX(t) = (MAX_NUM_SPRITES <= 8)
-    SprDoubleY(t) = (MAX_NUM_SPRITES <= 8)
-    X(t) = 130
+    X(t) = 0
     Y(t) = 160
 NEXT t
+IF MAX_NUM_SPRITES < 9 THEN
+    CALL SprDoubleXAll(TRUE)
+    CALL SprDoubleYAll(TRUE)
+END IF
 
 DIM NumSprites AS BYTE
     NumSprites = 0
@@ -75,7 +77,8 @@ GAME_LOOP:
         CALL SprBufRequestGeometry(t, Shape(t), a + 4)
         CALL SprXY(t, X(t), Y(t))
 
-        X(t) = X(t) + RotX((a AND %11111000) OR 1) - 11
+        X(t) = 1 + X(t) + RotX((a AND %11111000) OR 1) - 11
+        IF X(t) >= 320 THEN X(t) = -24
         Y(t) = Y(t) + RotY((a AND %11111000) OR 1) - 10
     NEXT t
     Angle = Angle + 1

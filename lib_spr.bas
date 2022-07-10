@@ -1,4 +1,5 @@
 'INCLUDE "lib_memory.bas"
+'INCLUDE "lib_types.bas"
 
 REM **************************************
 REM LIBRARY CONVENTIONS
@@ -7,38 +8,73 @@ REM   FALSE = $00
 REM **************************************
 
 REM **************************************
-REM 16 / 24 / 32
+REM 16 / 24 / 32 (only 16 tested)
 REM You must also update MAXSPR in ASM code
+REM **************************************
 CONST MAX_NUM_SPRITES = 16
 
-REM ****************************************************************************
-REM Must be called before other methods to initialise sprite system
-REM ****************************************************************************
-DECLARE SUB SprInit(NumSprites AS BYTE) SHARED STATIC
+REM **************************************
+REM Modes for SprInit(Mode)
+REM You must also update MAXSPR in ASM code
+REM **************************************
+CONST SPR_MODE_8 = 8
+CONST SPR_MODE_16 = 16
 
 REM ****************************************************************************
-REM Define colors for multicolor sprites
+REM Initialise Sprite System
+REM 
+REM Must be called AFTER VIC-bank and Screen Memory address are set, 
+REM but BEFORE any other methods are used.
+REM 
+REM Mode can be SPR_MODE_8 or SPR_MODE_16.
+REM  - Invidividual sprite's MultiColorMode, Priority, DoubleWidth or
+REM    DoubleHeight can only be set in 8 sprite mode. e.g.
+REM     - SprDoubleX(0) = TRUE
+REM  - 16 sprite mode can use only:
+REM     - SprDoubleXAll(TRUE)
+REM     - SprDoubleYAll(TRUE)
+REM     - SprMultiColorAll(TRUE)
+REM     - SprPriorityAll(TRUE)
+REM 
+REM NOTE Both modes intialise a raster interrupt that updates sprite data
+REM      from cache arrays to IO registers during off-screen. Update is
+REM      triggered with SprUpdate.
 REM ****************************************************************************
-DECLARE SUB SprMultiColors(Color1 AS BYTE, Color2 AS BYTE) SHARED STATIC
+DECLARE SUB SprInit(Mode AS BYTE) SHARED STATIC
 
+REM ****************************************************************************
+REM Commit all changes from cache arrays to IO registers.
+REM Blocking=TRUE waits until the next raster interrupt is completed.
+REM ****************************************************************************
+DECLARE SUB SpriteUpdate(Blocking AS BYTE) SHARED STATIC
+
+REM ****************************************************************************
+REM Clears sprite frame.
+REM ****************************************************************************
 DECLARE SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
-DECLARE SUB SprInitSynchro() SHARED STATIC
-DECLARE SUB SprInitMultiplex() SHARED STATIC
 
 REM ****************************************************************************
-REM Following methods set and get sprite properties
+REM Enable/disable individual sprites
 REM ****************************************************************************
-DECLARE SUB SprConfig(SprNr AS BYTE, IsMultiColor AS BYTE, DoubleX AS BYTE, DoubleY AS BYTE, Background AS BYTE, Color AS BYTE) SHARED STATIC
 DECLARE SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
 DECLARE FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
 
 REM ****************************************************************************
-REM Set x, y position of sprite.
+REM Set x, y position of a sprite
 REM ****************************************************************************
 DECLARE SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
-REM Records sprite-sprite collisions with defined sprite to SprCollision array
+REM Set TRUE/FALSE property for all prites. Works in both modes.
+REM ****************************************************************************
+DECLARE SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
+DECLARE SUB SprDoubleYAll(Value AS BYTE) SHARED STATIC
+DECLARE SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
+DECLARE SUB SprBackgroundAll(Value AS BYTE) SHARED STATIC
+
+REM ****************************************************************************
+REM Update SprCollision array with TRUE/FALSE values to identify which
+REM sprites collide with SprNr
 REM ****************************************************************************
 DECLARE SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
 
@@ -47,62 +83,89 @@ REM PUBLIC FIELDS
 REM **************************************
 
 REM ****************************************************************************
-REM "CALL SprRecordCollisions(SprNr)" updates collison data (TRUE/FALSE) for each sprite
+REM "CALL SprRecordCollisions(SprNr)" updates collison data (TRUE/FALSE) for 
+REM each sprite
 REM ****************************************************************************
 DIM SHARED SprCollision(MAX_NUM_SPRITES) AS BYTE
 
 REM ****************************************************************************
-REM INTERNAL helper to access io registers
+REM Direct R/W to Multicolor registers e.g.
+REM SprMultiColor1 = (MultiColor1 + 1) AND %00001111
 REM ****************************************************************************
-TYPE TYPE_SPR_REG
-    x AS BYTE
-    y AS BYTE
-END TYPE
+DIM SHARED SprMultiColor1 AS BYTE @$d025
+DIM SHARED SprMultiColor2 AS BYTE @$d026
 
-REM **************************************
-REM INTERNAL FIELDS
-REM **************************************
+REM ****************************************************************************
+REM R/W individual sprite properties
+REM ****************************************************************************
+DIM SHARED SprColor(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprFrame(MAX_NUM_SPRITES) AS BYTE
+
+REM Collision Detection
+DIM SHARED SprWidth(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprHeight(MAX_NUM_SPRITES) AS BYTE
+
+REM ****************************************************************************
+REM Only in SPR_MODE_8 - Can R/W individual TRUE/FALSE sprite properties
+REM ****************************************************************************
+DIM SHARED SprDoubleX(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprDoubleY(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprMultiColor(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprPriority(MAX_NUM_SPRITES) AS BYTE
+
+
+REM ****************************************************************************
+REM  INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL 
+REM ****************************************************************************
+DECLARE SUB spr_init_mode8() STATIC
+DECLARE SUB spr_init_mode16() STATIC
+
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
 
 DIM num_sprites AS BYTE
     num_sprites = MAX_NUM_SPRITES
 
-'DIM spr_reg_xy(MAX_NUM_SPRITES) AS TYPE_SPR_REG @$d000
-'DIM spr_reg_msb AS BYTE @$d010
-'DIM spr_reg_mc AS BYTE @$d01c
-DIM spr_reg_mc1 AS BYTE @$d025
-DIM spr_reg_mc2 AS BYTE @$d026
-'DIM spr_reg_dx AS BYTE @$d01d
-'DIM spr_reg_dy AS BYTE @$d017
-'DIM spr_reg_back AS BYTE @$d01b
-'DIM spr_reg_enable AS BYTE @$d015
+DIM spr_reg_mc AS BYTE @$d01c
+DIM spr_reg_dx AS BYTE @$d01d
+DIM spr_reg_dy AS BYTE @$d017
+DIM spr_reg_back AS BYTE @$d01b
 
-REM **************************************
-REM INTERNAL SPRITE DATA
-REM **************************************
 DIM spr_x(MAX_NUM_SPRITES) AS BYTE
 DIM spr_y(MAX_NUM_SPRITES) AS BYTE 
 DIM spr_yy(MAX_NUM_SPRITES) AS BYTE 
 DIM spr_e(MAX_NUM_SPRITES) AS BYTE
 
-DIM SHARED SprColor(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprFrame(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprWidth(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprHeight(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprDoubleX(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprDoubleY(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprMultiColor(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprBackground(MAX_NUM_SPRITES) AS BYTE
+REM FAST variables for sprite multiplexing
+DIM sprupdateflag AS BYTE FAST
+DIM sortedsprites AS BYTE FAST
+DIM tempvariable AS BYTE FAST
+DIM sprirqcounter AS BYTE FAST
 
-REM ****************************************************************************
-REM CALL SprInit()
-REM ****************************************************************************
-REM Call before using the library if you change VIC bank or screen memory 
-REM address
-REM ****************************************************************************
-SUB SprInit(NumSprites AS BYTE) SHARED STATIC
-    num_sprites = NumSprites
+DIM sortorder(MAX_NUM_SPRITES) AS BYTE FAST
+
+SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
+    spr_reg_dx = $ff
+    MEMSET @SprDoubleX, MAX_NUM_SPRITES, Value
+END SUB
+
+SUB SprDoubleYAll(Value AS BYTE) SHARED STATIC
+    spr_reg_dy = Value
+    MEMSET @SprDoubleX, MAX_NUM_SPRITES, Value
+END SUB
+
+SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
+    spr_reg_mc = Value
+    MEMSET @SprMultiColor, MAX_NUM_SPRITES, Value
+END SUB
+
+SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
+    spr_reg_bg = Value
+    MEMSET @SprPriority, MAX_NUM_SPRITES, Value
+END SUB
+
+SUB SprInit(Mode AS BYTE) SHARED STATIC
+    num_sprites = Mode
     spr_ptrs = vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 
     FOR t AS BYTE = 0 TO num_sprites-1
@@ -118,25 +181,14 @@ SUB SprInit(NumSprites AS BYTE) SHARED STATIC
         SprDoubleX(t) = 0
         SprDoubleY(t) = 0
         SprMultiColor(t) = 0
-        SprBackground(t) = 0
+        SprPriority(t) = 0
     NEXT t
 
     IF num_sprites < 9 THEN
-        CALL SprInitSynchro()
+        CALL spr_init_mode8()
     ELSE
-        CALL SprInitMultiplex()
+        CALL spr_init_mode16()
     END IF
-END SUB
-
-REM ****************************************************************************
-REM INCLUDE "color.bas"
-REM CALL SprMultiColors(COLOR_BLACK, COLOR_WHITE)
-REM ****************************************************************************
-REM Set color values for multicolor sprites
-REM ****************************************************************************
-SUB SprMultiColors(Color1 AS BYTE, Color2 AS BYTE) SHARED STATIC
-    spr_reg_mc1 = Color1
-    spr_reg_mc2 = Color2
 END SUB
 
 SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
@@ -151,44 +203,6 @@ SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
         inc 1
         cli
     END ASM
-END SUB
-
-REM ****************************************************************************
-REM INCLUDE "lib_color.bas"
-REM INCLUDE "lib_types.bas"
-REM CALL SprConfig(0, FALSE, FALSE, FALSE, FALSE, COLOR_WHITE)
-REM ****************************************************************************
-REM Configure all multiple sprite attributes with one call
-REM ****************************************************************************
-SUB SprConfig(SprNr AS BYTE, IsMultiColor AS BYTE, DoubleX AS BYTE, DoubleY AS BYTE, Background AS BYTE, Color AS BYTE) SHARED STATIC
-    'DIM bit AS BYTE
-    '    bit = bit_pos(SprNr)
-    'IF IsMultiColor THEN
-    '    spr_reg_mc = spr_reg_mc OR bit
-    'ELSE
-    '    spr_reg_mc = spr_reg_mc AND NOT bit
-    'END IF
-    'IF DoubleX THEN
-    '    spr_reg_dx = spr_reg_dx OR bit
-    '    SprWidth(SprNr) = 24
-    'ELSE
-    '    spr_reg_dx = spr_reg_dx AND NOT bit
-    '    SprWidth(SprNr) = 12
-    'END IF
-    'IF DoubleY THEN
-    '    spr_reg_dy = spr_reg_dy OR bit
-    '    SprHeight(SprNr) = 42
-    'ELSE
-    '    spr_reg_dy = spr_reg_dy AND NOT bit
-    '    SprHeight(SprNr) = 21
-    'END IF
-    'IF Background THEN
-    '    spr_reg_back = spr_reg_back OR bit
-    'ELSE
-    '    spr_reg_back = spr_reg_back AND NOT bit
-    'END IF
-    SprColor(SprNr) = Color
-    'SprColor(SprNr) = Color
 END SUB
 
 REM ****************************************************************************
@@ -344,14 +358,6 @@ REM by Lasse Öörni (loorni@gmail.com)
 REM Available at http://cadaver.github.io
 REM **************************************
 
-REM FAST variables for sprite multiplexing
-DIM sprupdateflag AS BYTE FAST
-DIM sortedsprites AS BYTE FAST
-DIM tempvariable AS BYTE FAST
-DIM sprirqcounter AS BYTE FAST
-
-DIM sortorder(MAX_NUM_SPRITES) AS BYTE FAST
-
 SUB SpriteUpdate(Blocking AS BYTE) SHARED STATIC
     ASM
                 inc {sprupdateflag}              ;Signal to IRQ: sort the
@@ -363,7 +369,7 @@ non_blocking:
     END ASM
 END SUB
 
-SUB SprInitSynchro() SHARED STATIC
+SUB spr_init_mode8() STATIC
     ASM
 IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
 
@@ -434,7 +440,7 @@ synchro_irq_sprf:
                 rol
                 rol $d01c
 
-                lda {SprBackground},y
+                lda {SprPriority},y
                 rol
                 rol $d01b
 
@@ -450,7 +456,7 @@ synchro_end:
     END ASM
 END SUB
 
-SUB SprInitMultiplex() SHARED STATIC
+SUB spr_init_mode16() STATIC
     sortedsprites = 0
     sprupdateflag = 0
     FOR t AS BYTE = 0 TO num_sprites-1
@@ -566,6 +572,8 @@ irq1_sortloop3: ldy {sortorder},x               ;Final loop:
                 sta sortsprf,x
                 lda {SprColor},y
                 sta sortsprc,x
+                lda {SprDoubleX},y
+                sta sortsprx2,x
 
                 inx
                 cpx {sortedsprites}
@@ -590,20 +598,21 @@ irq2_spriteloop:lda sortspry,y
                 lda sortsprx,y
                 asl
                 sta $d000,x
-                bcc irq2_lowmsb
                 lda $d010
+                bcc irq2_lowmsb
                 ora ortbl,x
-                sta $d010
                 jmp irq2_msbok
-irq2_lowmsb:    lda $d010
+irq2_lowmsb:
                 and andtbl,x
+irq2_msbok:     
                 sta $d010
-irq2_msbok:     ldx physicalsprtbl1,y           ;Physical sprite number x 1
+                ldx physicalsprtbl1,y           ;Physical sprite number x 1
                 lda sortsprf,y
 irq2_sprf:
                 sta {spr_ptrs},x              ;for color & frame
                 lda sortsprc,y
                 sta $d027,x
+                
                 iny
                 bne irq2_spriteloop
 irq2_endspr:    cmp #$ff                        ;Was it the endmark?
@@ -627,6 +636,7 @@ sortsprx:       ds.b MAXSPR,0                   ;Sorted sprite table
 sortspry:       ds.b MAXSPR+1,0                 ;Must be one byte extra for the $ff endmark
 sortsprc:       ds.b MAXSPR,0
 sortsprf:       ds.b MAXSPR,0
+sortsprx2:      ds.b MAXSPR,0
 
 
 d015tbl:        dc.b %00000000                  ;Table of sprites that are "on"
@@ -674,6 +684,5 @@ ortbl:          dc.b 1
                 dc.b 255-128
                 dc.b 128
 multiplex_end:
-                nop
     END ASM
 END SUB

@@ -11,14 +11,14 @@ REM **************************************
 REM 16 / 24 / 32 (only 16 tested)
 REM You must also update MAXSPR in ASM code
 REM **************************************
-CONST MAX_NUM_SPRITES = 16
+SHARED CONST MAX_NUM_SPRITES = 16
 
 REM **************************************
 REM Modes for SprInit(Mode)
 REM You must also update MAXSPR in ASM code
 REM **************************************
-CONST SPR_MODE_8 = 8
-CONST SPR_MODE_16 = 16
+SHARED CONST SPR_MODE_8 = 8
+SHARED CONST SPR_MODE_16 = 16
 
 REM ****************************************************************************
 REM Initialise Sprite System
@@ -143,8 +143,8 @@ DECLARE SUB spr_init_mode16() STATIC
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
 
-DIM num_sprites AS BYTE
-    num_sprites = MAX_NUM_SPRITES
+DIM SHARED spr_num_sprites AS BYTE
+    spr_num_sprites = MAX_NUM_SPRITES
 
 DIM spr_reg_mc AS BYTE @$d01c
 DIM spr_reg_dx AS BYTE @$d01d
@@ -185,10 +185,10 @@ SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
 END SUB
 
 SUB SprInit(Mode AS BYTE) SHARED STATIC
-    num_sprites = Mode
+    spr_num_sprites = Mode
     spr_ptrs = vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 
-    FOR t AS BYTE = 0 TO num_sprites-1
+    FOR t AS BYTE = 0 TO spr_num_sprites-1
         spr_x(t) = 0
         spr_y(t) = 255
         spr_yy(t) = 255
@@ -204,7 +204,7 @@ SUB SprInit(Mode AS BYTE) SHARED STATIC
         SprPriority(t) = 0
     NEXT t
 
-    IF num_sprites < 9 THEN
+    IF spr_num_sprites < 9 THEN
         CALL spr_init_mode8()
     ELSE
         CALL spr_init_mode16()
@@ -270,7 +270,7 @@ END SUB
 SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
     ASM
         ldy {SprNr}
-        ldx {num_sprites}
+        ldx {spr_num_sprites}
         dex
         lda {spr_e},y
         bne spr_collision_loop
@@ -434,11 +434,9 @@ synchro_end:
 END SUB
 
 SUB spr_init_mode16() STATIC
-    DIM last AS BYTE
-    last = MAX_NUM_SPRITES - 1
     sortedsprites = 0
     sprupdateflag = 0
-    FOR t AS BYTE = 0 TO num_sprites-1
+    FOR t AS BYTE = 0 TO spr_num_sprites-1
         sortorder(t) = t
     NEXT t
 
@@ -487,7 +485,7 @@ irq1:           dec $d019                       ;Acknowledge raster interrupt
                 beq irq1_nonewsprites
                 lda #$00
                 sta {sprupdateflag}
-                lda {num_sprites}                ;Take number of sprites given by the main program
+                lda {spr_num_sprites}                ;Take number of sprites given by the main program
                 sta {sortedsprites}             ;If it's zero, don't need to
                 bne irq1_beginsort              ;sort
 
@@ -537,7 +535,7 @@ irq1_sortreload:
                 ldx #$00
 irq1_sortskip:
                 inx
-                cpx {last}
+                cpx #MAXSPR-1
                 bcc irq1_sortloop
                 ldx {sortedsprites}
                 lda #$ff                        ;$ff is the endmark for the

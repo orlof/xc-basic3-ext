@@ -1,9 +1,25 @@
 'INCLUDE "lib_memory.bas"
+'INCLUDE "lib_types.bas"
+'INCLUDE "lib_spr.bas"
+
+DECLARE SUB SprGeomInit() SHARED STATIC
+DECLARE SUB SprGeomUpdateSprite(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+DECLARE SUB SprGeomRequestSpriteUpdate(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+DECLARE SUB SprGeomProcessRequests(MaxRequests AS BYTE) SHARED STATIC
 
 DECLARE SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprGeomLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
 DECLARE SUB SprGeomPrepare(GeometryAddr AS WORD) SHARED STATIC
 DECLARE SUB _DrawLine() STATIC
+
+REM **************************************
+REM INTERNAL FIELDS
+REM **************************************
+DIM CurAngle(MAX_NUM_SPRITES) AS BYTE
+DIM ReqAngle(MAX_NUM_SPRITES) AS BYTE
+
+DIM CurGeom(MAX_NUM_SPRITES) AS WORD
+DIM ReqGeom(MAX_NUM_SPRITES) AS WORD
 
 DIM sprite_line_x1 AS BYTE FAST
 DIM sprite_line_y1 AS BYTE FAST
@@ -13,13 +29,58 @@ DIM sprite_line_dx AS BYTE FAST
 DIM sprite_line_dy AS BYTE FAST
 DIM sprite_line_err AS BYTE FAST
 
-
 DIM SHARED RotX(256) AS BYTE @ _RotX
 DIM SHARED RotY(256) AS BYTE @ _RotY
 DIM pixel_mask(24) AS BYTE @_pixel_mask
 
 CONST END_SHAPE  = $10
 CONST NO_DRAW    = $20
+
+REM ****************************************************************************
+REM CALL spr_init()
+REM ****************************************************************************
+REM Call before using the library if you change VIC bank or screen memory 
+REM address
+REM ****************************************************************************
+SUB SprGeomInit() SHARED STATIC
+    FOR t AS BYTE = 0 TO spr_num_sprites-1
+        CurAngle(t) = 0
+        CurGeom(t) = 0
+        ReqAngle(t) = 0
+        ReqGeom(t) = 0
+    NEXT t
+END SUB
+
+SUB SprGeomRequestSpriteUpdate(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+    ReqAngle(SprNr) = Angle
+    ReqGeom(SprNr) = GeometryAddr
+END SUB
+
+DIM NextSprNr AS BYTE
+    NextSprNr = 0
+SUB SprGeomProcessRequests(MaxRequests AS BYTE) SHARED STATIC
+    DIM StartSprNr AS BYTE
+        StartSprNr = NextSprNr
+    DO
+        IF ReqGeom(NextSprNr) <> 0 AND (CurAngle(NextSprNr) <> ReqAngle(NextSprNr) OR CurGeom(NextSprNr) <> ReqGeom(NextSprNr)) THEN
+            CALL SprGeomUpdateSprite(NextSprNr, ReqGeom(NextSprNr), ReqAngle(NextSprNr)) 
+            MaxRequests = MaxRequests - 1
+        END IF
+
+        NextSprNr = NextSprNr + 1
+        IF NextSprNr = spr_num_sprites THEN NextSprNr = 0 
+    LOOP UNTIL NextSprNr = startSprNr OR MaxRequests = 0
+END SUB
+
+SUB SprGeomUpdateSprite(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+    SprFrame(SprNr) = SprFrame(SprNr) XOR 1
+
+    CALL SprClearFrame(SprFrame(SprNr))
+    CALL SprGeomDraw(SprFrame(SprNr), GeometryAddr, Angle)
+
+    CurAngle(SprNr) = Angle AND %11111000
+    CurGeom(SprNr) = GeometryAddr
+END SUB
 
 REM ShapePrepare converts human friendly data to packet polyline format.
 REM Data has a byte pair for each Point. First byte represents the Angle

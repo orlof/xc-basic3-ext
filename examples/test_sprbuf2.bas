@@ -3,15 +3,16 @@ INCLUDE "../lib_types.bas"
 INCLUDE "../lib_memory.bas"
 INCLUDE "../lib_spr.bas"
 INCLUDE "../lib_sprgeom.bas"
-INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
-CONST MAX_NUM_SPRITES = 16
+DIM ZP_INDEX AS BYTE
 
+' INIT SCREEN
 CALL Scr_Clear()
 ScreenColor = COLOR_BLACK
 BorderColor = COLOR_BLACK
 
+' INIT GEOMETRY SHAPES
 DIM Shape(16) AS WORD
 Shape(0) = @GeomShip0
 Shape(1) = @GeomShip1
@@ -29,18 +30,33 @@ Shape(12) = @GeomShip12
 Shape(13) = @GeomShip13
 Shape(14) = @GeomShip14
 Shape(15) = @GeomShip15
-FOR t AS BYTE = 0 TO 15
-    CALL SprGeomPrepare(Shape(t))
-NEXT t
+FOR ZP_INDEX = 0 TO spr_num_sprites-1
+    CALL SprGeomPrepare(Shape(ZP_INDEX))
+NEXT
 
-CALL SprInit(MAX_NUM_SPRITES)
-CALL SprBufInit(256 - 2 * MAX_NUM_SPRITES, MAX_NUM_SPRITES)
-print "init "; MAX_NUM_SPRITES
+' INIT SPRITE SYSTEM
+CALL SprInit(SPR_MODE_16)
+print "init "; spr_num_sprites
 
+' CLEAR 2 FRAMES FOR EVERY SPRITE (2*16) FOR DOUBLE BUFFERING
+FOR ZP_INDEX = 256 - (2 * spr_num_sprites) TO 255
+    CALL SprClearFrame(ZP_INDEX)
+NEXT
+
+' ASSIGN FRAME FOR EACH SPRITE
+' DOUBLE BUFFERING WILL SWITCH FRAMES BY FLIPPING BIT 0
+FOR ZP_INDEX = 0 TO spr_num_sprites-1
+    SprFrame(ZP_INDEX) = 255 - 2 * ZP_INDEX
+NEXT
+
+' INIT GEOMETRY DRAWING WITH DOUBLE BUFFERING
+CALL SprGeomInit()
+
+' SPRITE COLOR, SIZE AND START POSITION
 DIM X(MAX_NUM_SPRITES) AS INT
 DIM Y(MAX_NUM_SPRITES) AS BYTE
 
-FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
+FOR t AS BYTE = 0 TO spr_num_sprites-1
     IF t = (ScreenColor AND %111) THEN
         SprColor(t) = t XOR %100
     ELSE
@@ -49,40 +65,49 @@ FOR t AS BYTE = 0 TO MAX_NUM_SPRITES-1
     X(t) = 0
     Y(t) = 160
 NEXT t
-IF MAX_NUM_SPRITES < 9 THEN
+IF spr_num_sprites < 9 THEN
     CALL SprDoubleXAll(TRUE)
     CALL SprDoubleYAll(TRUE)
 END IF
 
+' HELPER VARIABLES
 DIM NumSprites AS BYTE
     NumSprites = 0
 DIM Angle AS BYTE
     Angle = 0
 DIM Trigger AS BYTE
-    Trigger = 256 / MAX_NUM_SPRITES
+    Trigger = 256 / spr_num_sprites
 DIM NumUpdates AS BYTE
     NumUpdates = 2
-    IF MAX_NUM_SPRITES <= 8 THEN NumUpdates = 1
+    IF spr_num_sprites <= 8 THEN NumUpdates = 1
 
 print "start"
 GAME_LOOP:
-    IF (NumSprites < MAX_NUM_SPRITES) AND ((Angle AND (Trigger-1)) = 0) THEN
+    ' LAUNCH MORE SPRITES
+    IF (NumSprites < spr_num_sprites) AND ((Angle AND (Trigger-1)) = 0) THEN
         CALL SprEnable(NumSprites, TRUE)
         NumSprites = NumSprites + 1
         PRINT NumSprites
     END IF
+
+    ' UDATE SPRITE POSITION AND REQUEST GEOMETRY UPDATES
     FOR t AS BYTE = 0 TO NumSprites-1
         DIM a AS BYTE
             a = Angle - Trigger * t
         CALL SprXY(t, X(t), Y(t))
-        CALL SprBufRequestGeometry(t, Shape(t), a + 8)
+        CALL SprGeomRequestSpriteUpdate(t, Shape(t), a + 8)
         X(t) = 1 + X(t) + RotX((a AND %11111000) OR 1) - 11
         IF X(t) >= 320 THEN X(t) = -24
         Y(t) = Y(t) + RotY((a AND %11111000) OR 1) - 10
     NEXT t
+
+    ' THIS MAKES THEM MOVE TO RIGHT, OTHERWISE IT WOULD BE JUST CIRCLE 
     Angle = Angle + 1
-    CALL SprBufUpdate(NumUpdates)
-    'CALL SprBufSwapAll()
+
+    ' DRAW 1-2 GEOMETRY UPDATES PER CYCLE
+    CALL SprGeomProcessRequests(NumUpdates)
+
+    ' COMMIT ALL SPRITE CHANGES TO SPRITE SYSTEM
     CALL SpriteUpdate(TRUE)
 GOTO GAME_LOOP
 

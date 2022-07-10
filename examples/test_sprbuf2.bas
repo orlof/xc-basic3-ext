@@ -6,7 +6,7 @@ INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_sprbuf.bas"
 INCLUDE "../lib_scr.bas"
 
-CONST MAX_NUM_SPRITES = 8
+CONST MAX_NUM_SPRITES = 16
 
 CALL Scr_Clear()
 ScreenColor = COLOR_BLACK
@@ -82,7 +82,7 @@ GAME_LOOP:
     NEXT t
     Angle = Angle + 1
     CALL SprBufUpdate(NumUpdates)
-    CALL SprBufSwapAll()
+    'CALL SprBufSwapAll()
     CALL SpriteUpdate(TRUE)
 GOTO GAME_LOOP
 

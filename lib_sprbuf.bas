@@ -1,12 +1,14 @@
+'INCLUDE "lib_memory.bas"
+'INCLUDE "lib_types.bas"
 'INCLUDE "lib_sprgeom.bas"
 'INCLUDE "lib_spr.bas"
 
 CONST MAX_NUM_SPRITES = 16
 
 DECLARE SUB SprBufInit(FrameStart AS BYTE, NumSprites AS BYTE) SHARED STATIC
+DECLARE SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprBufRequestGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprBufUpdate(MaxUpdates AS BYTE) SHARED STATIC
-DECLARE SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprBufSwapAll() SHARED STATIC
 DECLARE SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
 
@@ -15,11 +17,11 @@ REM INTERNAL FIELDS
 REM **************************************
 DIM ZP_B0 AS BYTE FAST
 
-DIM SwapAvailable(MAX_NUM_SPRITES) AS BYTE
-DIM PrevAngle(MAX_NUM_SPRITES) AS BYTE
-DIM PrevGeometry(MAX_NUM_SPRITES) AS WORD
-DIM NextAngle(MAX_NUM_SPRITES) AS BYTE
-DIM NextGeometry(MAX_NUM_SPRITES) AS WORD
+DIM ReqDone(MAX_NUM_SPRITES) AS BYTE
+DIM CurAngle(MAX_NUM_SPRITES) AS BYTE
+DIM CurGeom(MAX_NUM_SPRITES) AS WORD
+DIM ReqAngle(MAX_NUM_SPRITES) AS BYTE
+DIM ReqGeom(MAX_NUM_SPRITES) AS WORD
 
 DIM num_sprites AS BYTE
 
@@ -32,11 +34,11 @@ REM ****************************************************************************
 SUB SprBufInit(FrameStart AS BYTE, NumSprites AS BYTE) SHARED STATIC
     num_sprites = NumSprites
     FOR t AS BYTE = 0 TO num_sprites-1
-        SwapAvailable(t) = $00
-        PrevAngle(t) = 0
-        PrevGeometry(t) = 0
-        NextAngle(t) = 0
-        NextGeometry(t) = 0
+        ReqDone(t) = FALSE
+        CurAngle(t) = 0
+        CurGeom(t) = 0
+        ReqAngle(t) = 0
+        ReqGeom(t) = 0
         CALL SprClearFrame(FrameStart + 2 * t)
         CALL SprClearFrame(FrameStart + 2 * t + 1)
         SprFrame(t) = FrameStart + 2 * t
@@ -44,34 +46,39 @@ SUB SprBufInit(FrameStart AS BYTE, NumSprites AS BYTE) SHARED STATIC
 END SUB
 
 SUB SprBufRequestGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-    NextAngle(SprNr) = Angle
-    NextGeometry(SprNr) = GeometryAddr
+    ReqAngle(SprNr) = Angle
+    ReqGeom(SprNr) = GeometryAddr
 END SUB
 
-DIM NextUpdate AS BYTE
-    NextUpdate = 0
+DIM NextSprNr AS BYTE
+    NextSprNr = 0
 SUB SprBufUpdate(MaxUpdates AS BYTE) SHARED STATIC
-    FOR t AS BYTE = 0 TO num_sprites-1
-        IF NextGeometry(NextUpdate) <> 0 AND (PrevAngle(NextUpdate) <> NextAngle(NextUpdate) OR PrevGeometry(NextUpdate) <> NextGeometry(NextUpdate)) THEN
-            CALL SprBufDrawGeometry(NextUpdate, NextGeometry(NextUpdate), NextAngle(NextUpdate)) 
+    DIM StartSprNr AS BYTE
+        StartSprNr = NextSprNr
+    DO
+        IF ReqGeom(NextSprNr) <> 0 AND (CurAngle(NextSprNr) <> ReqAngle(NextSprNr) OR CurGeom(NextSprNr) <> ReqGeom(NextSprNr)) THEN
+            CALL SprBufDrawGeometry(NextSprNr, ReqGeom(NextSprNr), ReqAngle(NextSprNr)) 
             MaxUpdates = MaxUpdates - 1
         END IF
 
-        NextUpdate = NextUpdate + 1
-        IF NextUpdate = num_sprites THEN NextUpdate = 0 
-
-        IF MaxUpdates=0 THEN EXIT SUB
-    NEXT t    
+        NextSprNr = NextSprNr + 1
+        IF NextSprNr = num_sprites THEN NextSprNr = 0 
+    LOOP UNTIL NextSprNr = startSprNr OR MaxUpdates = 0
 END SUB
 
 SUB SprBufDrawGeometry(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
+    DIM FramePtr AS BYTE
+        FramePtr = SprFrame(SprNr) XOR 1
     Angle = Angle AND %11111000
-    ZP_B0 = SprFrame(SprNr) XOR 1
-    CALL SprClearFrame(ZP_B0)
-    CALL SprGeomDraw(ZP_B0, GeometryAddr, Angle)
-    SwapAvailable(SprNr) = $ff
-    PrevAngle(SprNr) = Angle
-    PrevGeometry(SprNr) = GeometryAddr
+
+    CALL SprClearFrame(FramePtr)
+    CALL SprGeomDraw(FramePtr, GeometryAddr, Angle)
+
+    ReqDone(SprNr) = TRUE
+    CurAngle(SprNr) = Angle
+    CurGeom(SprNr) = GeometryAddr
+
+    CALL SprBufSwap(SprNr)
 END SUB
 
 SUB SprBufSwapAll() SHARED STATIC
@@ -81,8 +88,8 @@ SUB SprBufSwapAll() SHARED STATIC
 END SUB
 
 SUB SprBufSwap(SprNr AS BYTE) SHARED STATIC
-    IF SwapAvailable(SprNr) THEN
+    IF ReqDone(SprNr) THEN
         SprFrame(SprNr) = SprFrame(SprNr) XOR 1
-        SwapAvailable(SprNr) = $00
+        ReqDone(SprNr) = $00
     END IF
 END SUB        

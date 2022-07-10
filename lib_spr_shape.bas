@@ -4,17 +4,17 @@ REM ****************************************************************************
 REM Copies sprite pattern from DATA AS BYTE statements to address specified by 
 REM given FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM ****************************************************************************
-DECLARE SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC
+DECLARE SUB SprShapeImport(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
 REM ****************************************************************************
-DECLARE SUB SprFlipXShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
+DECLARE SUB SprShapeFlipX(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
 REM ****************************************************************************
-DECLARE SUB SprFlipYShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
+DECLARE SUB SprShapeFlipY(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM CALL SprImportShape(@PLAYER_SHIP, 255)
@@ -27,14 +27,14 @@ REM Copies sprite pattern from DATA AS BYTE statements to address specified by
 REM given FramePtr (16384 * VIC_BANK + 64 * FramePtr = dest_address)
 REM [Developer is responsible that the area is free]
 REM ****************************************************************************
-SUB SprImportShape(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC
+SUB SprShapeImport(SrcAddr AS WORD, FramePtr AS BYTE) SHARED STATIC
     MEMCPY SrcAddr, vic_bank_addr + SHL(CWORD(FramePtr), 6), 63
 END SUB
 
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it horizontally.
 REM ****************************************************************************
-SUB SprFlipXShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
+SUB SprShapeFlipX(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
     ZP_W0 = vic_bank_addr + SHL(CWORD(SrcFramePtr), 6)
     ZP_W1 = vic_bank_addr + SHL(CWORD(DstFramePtr), 6)
 
@@ -91,7 +91,7 @@ END SUB
 REM ****************************************************************************
 REM Creates new pattern from existing pattern by mirroring it vertically.
 REM ****************************************************************************
-SUB SprFlipYShape(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
+SUB SprShapeFlipY(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
     ZP_W0 = vic_bank_addr + SHL(CWORD(SrcFramePtr), 6)
     ZP_W1 = vic_bank_addr + SHL(CWORD(DstFramePtr), 6) + 60
     FOR t AS BYTE = 0 TO 63

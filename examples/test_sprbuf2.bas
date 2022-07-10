@@ -108,7 +108,7 @@ GAME_LOOP:
     CALL SprGeomProcessRequests(NumUpdates)
 
     ' COMMIT ALL SPRITE CHANGES TO SPRITE SYSTEM
-    CALL SpriteUpdate(TRUE)
+    CALL SprUpdate(TRUE)
 GOTO GAME_LOOP
 
 GeomShip0:

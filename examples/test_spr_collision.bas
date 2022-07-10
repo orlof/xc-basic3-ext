@@ -1,19 +1,19 @@
-INCLUDE "../lib_color.bas"
+INCLUDE "../lib_memory.bas"
 INCLUDE "../lib_scr.bas"
 INCLUDE "../lib_spr.bas"
+INCLUDE "../lib_spr_shape.bas"
 INCLUDE "../lib_joy.bas"
 INCLUDE "../lib_types.bas"
 INCLUDE "../lib_random.bas"
 
 RANDOMIZE TI()
 
-CALL SprInit()
-CALL SpriteInit()
-CALL SprImportShape(@SPRITE_BLOCK, 255)
+CALL SprInit(SPR_MODE_16)
+CALL SprShapeImport(@SPRITE_BLOCK, 255)
 
 FOR t AS BYTE = 0 TO 15
-    CALL SprColor(t, t AND 3)
-    CALL SprFrame(t, 255)
+    SprColor(t) = t AND 3
+    SprFrame(t) = 255
     CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
     CALL SprEnable(t, TRUE)
 NEXT t
@@ -52,7 +52,7 @@ game_loop:
         END IF
     NEXT t
 
-    CALL SpriteUpdate()
+    CALL SprUpdate(TRUE)
     GOTO game_loop
 
 SPRITE_BLOCK:

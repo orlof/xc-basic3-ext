@@ -46,7 +46,7 @@ REM ****************************************************************************
 REM Commit all changes from cache arrays to IO registers.
 REM Blocking=TRUE waits until the next raster interrupt is completed.
 REM ****************************************************************************
-DECLARE SUB SpriteUpdate(Blocking AS BYTE) SHARED STATIC
+DECLARE SUB SprUpdate(Blocking AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Clears sprite frame.
@@ -335,7 +335,7 @@ REM by Lasse Öörni (loorni@gmail.com)
 REM Available at http://cadaver.github.io
 REM **************************************
 
-SUB SpriteUpdate(Blocking AS BYTE) SHARED STATIC
+SUB SprUpdate(Blocking AS BYTE) SHARED STATIC
     ASM
                 inc {sprupdateflag}              ;Signal to IRQ: sort the
                 lda {blocking}                   ;sprites

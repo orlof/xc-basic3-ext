@@ -1,14 +1,19 @@
+INCLUDE "../lib_memory.bas"
 INCLUDE "../lib_color.bas"
 INCLUDE "../lib_types.bas"
 INCLUDE "../lib_spr.bas"
 INCLUDE "../lib_sprgeom.bas"
 INCLUDE "../lib_scr.bas"
 
-CALL SprGeomPrepare(@GeomTriangle)
+CALL SprInit(SPR_MODE_8)
+CALL SprGeomInit()
 CALL SprGeomPrepare(@GeomShip)
 
-CALL SprConfig(0, FALSE, TRUE, TRUE, TRUE, COLOR_WHITE)
-CALL SprFrame(0, 255)
+SprDoubleX(0) = TRUE
+SprDoubleY(0) = TRUE
+SprPriority(0) = TRUE
+SprColor(0) = COLOR_WHITE
+SprFrame(0) = 255
 CALL SprEnable(0, TRUE)
 
 DIM Angle AS BYTE
@@ -18,21 +23,17 @@ DIM X AS WORD
 DIM Y AS BYTE
     Y = 160
 GAME_LOOP:
-    CALL SprClearFrame(255)
-    CALL SprGeomDraw(255, @GeomShip, Angle)
+    CALL SprGeomUpdateSprite(0, @GeomShip, Angle)
     CALL SprXY(0, X, Y)
     Angle = Angle + 1
+ 
+    ' MISUSE THE ROTATION DATA FOR MOVEMENT :-)
     X = X + RotX((Angle AND %11111000) OR 1) - 11
     Y = Y + RotY((Angle AND %11111000) OR 1) - 10
-    CALL scr_wait_bottom()
+ 
+    CALL SprUpdate(TRUE)
 GOTO game_loop
 
-GeomTriangle:
-DATA AS BYTE 0, 3
-DATA AS BYTE 20, 3
-DATA AS BYTE 12, 3
-DATA AS BYTE 0, 3
-DATA AS BYTE 2, 0
 GeomShip:
 DATA AS BYTE 0, 7
 DATA AS BYTE 4, 2

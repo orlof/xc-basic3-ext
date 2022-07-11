@@ -13,40 +13,25 @@ CALL SprGeomInit()
 SprDoubleX(0) = TRUE
 SprDoubleY(0) = TRUE
 SprPriority(0) = TRUE
-SprColor(0) = COLOR_BLACK
+SprColor(0) = COLOR_WHITE
 SprFrame(0) = 254
 
-SprDoubleX(1) = TRUE
-SprDoubleY(1) = TRUE
-SprPriority(1) = TRUE
-SprColor(1) = COLOR_WHITE
-SprFrame(1) = 252
-
 CALL SprEnable(0, TRUE)
-CALL SprEnable(1, TRUE)
 
-DIM Angle(2) AS BYTE
-    Angle(0) = 0
-    Angle(1) = 124
-DIM X(2) AS WORD
-    X(0) = 130
-    X(1) = 130
-DIM Y(2) AS BYTE
-    Y(0) = 160
-    Y(1) = 160
+DIM Angle AS BYTE
+    Angle = 0
+DIM X AS WORD
+    X = 130
+DIM Y AS BYTE
+    Y = 160
 
 GAME_LOOP:
-    CALL SprGeomUpdateSprite(0, @GeomTriangle, Angle(0))
-    CALL SprGeomUpdateSprite(1, @GeomTriangle, Angle(1))
-    CALL SprXY(0, X(0), Y(0))
-    CALL SprXY(1, X(1), Y(1))
+    CALL SprGeomUpdateSprite(0, @GeomTriangle, Angle)
+    CALL SprXY(0, X, Y)
 
-    Angle(0) = Angle(0) + 1
-    Angle(1) = Angle(1) - 1
-    X(0) = X(0) + RotX((Angle(0) AND %11111000) OR 1) - 11
-    Y(0) = Y(0) + RotY((Angle(0) AND %11111000) OR 1) - 10
-    X(1) = X(1) + RotX((Angle(1) AND %11111000) OR 1) - 11
-    Y(1) = Y(1) + RotY((Angle(1) AND %11111000) OR 1) - 10
+    Angle = Angle + 1
+    X = X + RotX((Angle AND %11111000) OR 1) - 11
+    Y = Y + RotY((Angle AND %11111000) OR 1) - 10
 
     CALL SprUpdate(TRUE)
 GOTO GAME_LOOP

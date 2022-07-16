@@ -1,45 +1,158 @@
-'INCLUDE "lib_memory.bas"
+INCLUDE "lib_memory.bas"
 
-DECLARE SUB ScrScreenMem(ScrMemPtr AS BYTE) SHARED STATIC
-DECLARE SUB ScrTextMode() SHARED STATIC
-DECLARE SUB ScrWaitRaster256() SHARED STATIC
-DECLARE SUB ScrCentre(y AS BYTE, s AS STRING * 96) SHARED STATIC
-DECLARE SUB ScrClear() SHARED STATIC
-DECLARE FUNCTION ScrCharAt AS BYTE(x AS BYTE, y AS BYTE) SHARED STATIC
-DECLARE FUNCTION ScrPetsciiToScreenCode AS BYTE(Petscii AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION ScrPetsciiToScreenCode AS BYTE(Petscii AS STRING * 1) SHARED STATIC OVERLOAD
-DECLARE SUB ScrCopyCharROM(CharSet AS BYTE, DstAddr AS WORD) SHARED STATIC
-DECLARE SUB ScrCharMem(Addr AS WORD) SHARED STATIC
-DECLARE SUB ScrImportChar(ScreenCode AS BYTE, SrcAddr AS WORD) SHARED STATIC OVERLOAD
-DECLARE SUB ScrImportChar(Petscii AS STRING * 1, SrcAddr AS WORD) SHARED STATIC OVERLOAD
+DECLARE SUB WaitRasterLine256() SHARED STATIC
+DECLARE FUNCTION PetsciiToScreenCode AS BYTE(Petscii AS BYTE) SHARED STATIC OVERLOAD
+DECLARE FUNCTION PetsciiToScreenCode AS BYTE(Petscii AS STRING * 1) SHARED STATIC OVERLOAD
+DECLARE SUB CopyCharROM(CharSet AS BYTE, DstAddr AS WORD) SHARED STATIC
 
-SHARED CONST DEFAULT_SCR_MEM_PTR = 1
-SHARED CONST CHARSET_GRAPHICS = 0
-SHARED CONST CHARSET_LOWERCASE = 2048
+DIM SHARED border_color AS BYTE @53280
+DIM SHARED screen_color AS BYTE @53281
 
-DIM SHARED BorderColor AS BYTE @53280
-DIM SHARED ScreenColor AS BYTE @53281
 
-DIM SHARED ScrMemAddr AS WORD
-ScrMemAddr = 1024
+TYPE TextScreen
+    BorderColor AS BYTE
+    ScreenColor AS BYTE
 
-DIM screen_mem_ptr AS BYTE
-    screen_mem_ptr = 1
+    vic_bank_ptr AS BYTE
+    vic_bank_addr AS WORD
+    screen_mem_ptr AS BYTE
+    screen_mem_addr AS WORD
+    char_mem_ptr AS BYTE
+    char_mem_addr AS WORD
 
-SUB ScrScreenMem(ScrMemPtr AS BYTE) SHARED STATIC
-    screen_mem_ptr = ScrMemPtr
-    poke $d018, SHL(ScrMemPtr, 4) OR %0101
-    ScrMemAddr = vic_bank_addr + 1024 * CWORD(ScrMemPtr)
-END SUB
+    buffer_ptr AS BYTE
+    buffer_addr AS WORD 
 
-SUB ScrTextMode() SHARED STATIC
-    rem -- Bitmap mode off
-    poke $d011, peek($d011) AND %11011111
-    rem -- Restore screen address to default
-    poke $d018, SHL(screen_mem_ptr, 4) OR %0101
-END SUB
+    SUB Init(VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) STATIC
+        THIS.vic_bank_ptr = VicBankPtr
+        THIS.vic_bank_addr = 16384 * CWORD(VicBankPtr)
+        THIS.screen_mem_ptr = ScreenMemPtr
+        THIS.screen_mem_addr = THIS.vic_bank_addr + 1024 * CWORD(ScreenMemPtr)
+    END SUB
 
-SUB ScrWaitRaster256() SHARED STATIC
+    SUB DoubleBuffer(ScreenMemPtr) STATIC
+        THIS.buffer_ptr = ScreenMemPtr
+        THIS.buffer_addr = THIS.vic_bank_addr + 1024 * CWORD(ScreenMemPtr)
+    END SUB
+
+    SUB Swap() STATIC
+        SWAP screen_mem_ptr, buffer_ptr
+        SWAP screen_mem_addr, buffer_addr
+        CALL WaitRasterLine256()
+        POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR %0101
+        MEMCPY screen_mem_addr, buffer_addr, 1024
+    END SUB
+
+    SUB Colors(BorderColor AS BYTE, ScreenColor AS BYTE) STATIC
+        THIS.BorderColor = BorderColor
+        THIS.ScreenColor = ScreenColor
+    END SUB
+
+    SUB CharMem(Ptr AS BYTE) STATIC
+        ' Activate charmem from "addr" relative to VIC bank
+        ' Allowed values:
+        '   $0000 / 0          $0800 / 2048
+        '   $1000 / 4096       $1800 / 6144
+        '   $2000 / 8192       $2800 / 10240
+        '   $3000 / 12288      $3800 / 14336
+        '   Values 4096 and 6144 in VIC bank #0 and #2 select Character ROM instead
+        ' CALL ScrCharMem(14336)
+        THIS.char_mem_ptr = Ptr
+        THIS.char_mem_addr = THIS.vic_bank_addr + 2048 * CWORD(Ptr)
+    END SUB
+
+    SUB Activate() STATIC
+        POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
+        REM -- Bitmap mode off
+        POKE $d011, peek($d011) AND %11011111
+
+        REM -- Screen address
+        SCREEN THIS.screen_mem_ptr
+        ' POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR %0101
+
+        REM -- Font address
+        POKE $d018, (PEEK($d018) AND %11110001) OR SHL(THIS.char_mem_ptr, 1)
+
+        border_color = THIS.BorderColor
+        screen_color = THIS.ScreenColor
+
+
+    END SUB
+
+    SUB Deactivate() STATIC
+    END SUB
+
+    SUB Fill(Char AS BYTE, Color AS BYTE) STATIC
+        MEMSET THIS.screen_mem_addr, 1000, Char
+        MEMSET $D800, 1000, Color
+    END SUB
+
+    SUB Clear() STATIC
+        CALL THIS.Fill(32, 0)
+    END SUB
+
+    SUB Import(ScrAddr AS WORD, ColorAddr AS WORD) STATIC
+        MEMCPY ScrAddr, THIS.screen_mem_addr, 1000
+        MEMCPY ColorAddr, $d800, 1000
+    END SUB
+
+    SUB At(x AS BYTE, y AS BYTE, Char AS BYTE, Color AS BYTE) STATIC OVERLOAD
+        ZP_W0 = 40 * CWORD(y) + x
+        POKE THIS.screen_mem_addr + ZP_W0, Char
+        POKE $d800 + ZP_W0, Color
+    END SUB
+
+    SUB At(x AS BYTE, y AS BYTE, Char AS BYTE) STATIC OVERLOAD
+        POKE THIS.screen_mem_addr + 40 * CWORD(y) + x, Char
+    END SUB
+
+    FUNCTION At AS BYTE(x AS BYTE, y AS BYTE) STATIC OVERLOAD
+        RETURN PEEK(THIS.screen_mem_addr + 40 * CWORD(y) + x)
+    END FUNCTION
+
+    FUNCTION ColorAt AS BYTE(x AS BYTE, y AS BYTE) STATIC OVERLOAD
+        RETURN PEEK($d800 + 40 * CWORD(y) + x)
+    END FUNCTION
+
+    SUB ScrCentre(y AS BYTE, s AS STRING * 96) STATIC
+        TEXTAT SHR(40 - len(s), 1), y, s
+    END SUB
+
+    SUB ImportChar(ScreenCode AS BYTE, SrcAddr AS WORD) STATIC OVERLOAD
+        ' Redefine character glyph
+        ZP_W0 = THIS.char_mem_addr + 8 * CWORD(ScreenCode)
+        ASM
+            sei
+            dec 1
+            dec 1
+        END ASM
+        MEMCPY SrcAddr, ZP_W0, 8
+        ASM
+            inc 1
+            inc 1
+            cli
+        END ASM
+    END SUB
+
+    SUB ImportChar(Petscii AS STRING * 1, SrcAddr AS WORD) STATIC OVERLOAD
+        ' Replace character glyph with data starting at "SrcAddr"
+        '   CALL ScrImportChar("A", @my_a_letter)
+        '   END
+        '   my_a_letter:
+        '   DATA AS BYTE %00011000
+        '   DATA AS BYTE %00100100
+        '   DATA AS BYTE %01000010
+        '   DATA AS BYTE %01000010
+        '   DATA AS BYTE %01111110
+        '   DATA AS BYTE %01000010
+        '   DATA AS BYTE %01000010
+        '   DATA AS BYTE %00011000
+        CALL THIS.ImportChar(PetsciiToScreenCode(Petscii), SrcAddr)
+    END SUB
+
+END TYPE
+
+SUB WaitRasterLine256() SHARED STATIC
     ASM
 wait1:  bit $d011
         bmi wait1
@@ -48,19 +161,7 @@ wait2:  bit $d011
     END ASM
 END SUB
 
-SUB ScrCentre(y AS BYTE, s AS STRING * 96) SHARED STATIC
-    TEXTAT SHR(40 - len(s), 1), y, s
-END SUB
-
-SUB ScrClear() SHARED STATIC
-    SYS $E544 FAST
-END SUB
-
-FUNCTION ScrCharAt AS BYTE(x AS BYTE, y AS BYTE) SHARED STATIC
-    RETURN PEEK(ScrMemAddr + SHL(CWORD(y), 5) + SHL(CWORD(y), 3) + x)
-END FUNCTION
-
-SUB ScrCopyCharROM(CharSet AS BYTE, DstAddr AS WORD) SHARED STATIC
+SUB CopyCharROM(CharSet AS BYTE, DstAddr AS WORD) SHARED STATIC
     ASM
         sei         ; disable interrupts while we copy
         lda #$31    ; make the CPU see the Character Generator ROM...
@@ -78,57 +179,12 @@ DIM PETSCII_TO_SCREENCODE(8) AS BYTE @ _PETSCII_TO_SCREENCODE
 _PETSCII_TO_SCREENCODE:
 DATA AS BYTE $80, $00, $c0, $e0, $40, $c0, $80, $80
 
-FUNCTION ScrPetsciiToScreenCode AS BYTE(Petscii AS BYTE) SHARED STATIC OVERLOAD
+FUNCTION PetsciiToScreenCode AS BYTE(Petscii AS BYTE) SHARED STATIC OVERLOAD
     IF Petscii = $ff THEN RETURN $5e
     RETURN Petscii + PETSCII_TO_SCREENCODE(SHR(Petscii, 5))
 END FUNCTION
 
-FUNCTION ScrPetsciiToScreenCode AS BYTE(Petscii AS STRING * 1) SHARED STATIC OVERLOAD
-    RETURN ScrPetsciiToScreenCode(ASC(Petscii))
+FUNCTION PetsciiToScreenCode AS BYTE(Petscii AS STRING * 1) SHARED STATIC OVERLOAD
+    RETURN PetsciiToScreenCode(ASC(Petscii))
 END FUNCTION
 
-SUB ScrCharMem(Addr AS WORD) SHARED STATIC
-    ' Activate charmem from "addr" relative to VIC bank
-    ' Allowed values:
-    '   $0000 / 0          $0800 / 2048
-    '   $1000 / 4096       $1800 / 6144
-    '   $2000 / 8192       $2800 / 10240
-    '   $3000 / 12288      $3800 / 14336
-    '   Values 4096 and 6144 in VIC bank #0 and #2 select Character ROM instead
-    ' CALL ScrCharMem(14336)
-    DIM slot AS BYTE: slot = CBYTE(SHR(Addr, 10)) AND %1110
-    POKE $d018, (PEEK($d018) AND %11110001) OR slot
-END SUB
-
-SUB ScrImportChar(ScreenCode AS BYTE, SrcAddr AS WORD) SHARED STATIC OVERLOAD
-    ' Redefine character glyph
-    DIM addr AS WORD: addr = vic_bank_addr + 1024 * (PEEK($d018) AND %1110)
-    addr = addr + 8 * CWORD(ScreenCode)
-    ASM
-        sei
-        dec 1
-        dec 1
-    END ASM
-    MEMCPY SrcAddr, addr, 8
-    ASM
-        inc 1
-        inc 1
-        cli
-    END ASM
-END SUB
-
-SUB ScrImportChar(Petscii AS STRING * 1, SrcAddr AS WORD) SHARED STATIC OVERLOAD
-    ' Replace character glyph with data starting at "SrcAddr"
-    '   CALL ScrImportChar("A", @my_a_letter)
-    '   END
-    '   my_a_letter:
-    '   DATA AS BYTE %00011000
-    '   DATA AS BYTE %00100100
-    '   DATA AS BYTE %01000010
-    '   DATA AS BYTE %01000010
-    '   DATA AS BYTE %01111110
-    '   DATA AS BYTE %01000010
-    '   DATA AS BYTE %01000010
-    '   DATA AS BYTE %00011000
-    CALL ScrImportChar(ScrPetsciiToScreenCode(Petscii), SrcAddr)
-END SUB

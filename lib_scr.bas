@@ -102,8 +102,7 @@ END SUB
 
 SUB ScrImportChar(ScreenCode AS BYTE, SrcAddr AS WORD) SHARED STATIC OVERLOAD
     ' Redefine character glyph
-    DIM addr AS WORD: addr = 16384 * ((PEEK($dd00) AND %11) XOR %11)
-    addr = addr + 1024 * (PEEK($d018) AND %1110)
+    DIM addr AS WORD: addr = vic_bank_addr + 1024 * (PEEK($d018) AND %1110)
     addr = addr + 8 * CWORD(ScreenCode)
     ASM
         sei

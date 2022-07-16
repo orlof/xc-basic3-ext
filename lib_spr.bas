@@ -103,8 +103,8 @@ REM PUBLIC FIELDS
 REM **************************************
 
 REM ****************************************************************************
-REM "CALL SprRecordCollisions(SprNr)" updates collison data (TRUE/FALSE) for 
-REM each sprite
+REM Collision data (TRUE/FALSE) for each sprite
+REM Update by "CALL SprRecordCollisions(SprNr)" 
 REM ****************************************************************************
 DIM SHARED SprCollision(MAX_NUM_SPRITES) AS BYTE
 
@@ -126,7 +126,7 @@ DIM SHARED SprWidth(MAX_NUM_SPRITES) AS BYTE
 DIM SHARED SprHeight(MAX_NUM_SPRITES) AS BYTE
 
 REM ****************************************************************************
-REM Only in SPR_MODE_8 - Can R/W individual TRUE/FALSE sprite properties
+REM SPR_MODE_8 ONLY - R/W individual TRUE/FALSE sprite properties
 REM ****************************************************************************
 DIM SHARED SprDoubleX(MAX_NUM_SPRITES) AS BYTE
 DIM SHARED SprDoubleY(MAX_NUM_SPRITES) AS BYTE

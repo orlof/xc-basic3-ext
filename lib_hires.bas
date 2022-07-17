@@ -11,6 +11,36 @@ TYPE TextScreen
     bitmap_ptr AS BYTE
     bitmap_addr AS WORD
 
+    DIM y_tbl_hi(200) AS BYTE
+    DIM y_tbl_lo(200) AS BYTE
+
+    DIM x_tbl(200) AS BYTE
+    DIM pixel_mask(200) AS BYTE
+        FOR t AS BYTE = 0 TO 192 STEP 8
+            FOR t2 AS BYTE = 0 TO 7
+                x_tbl(t+t2) = t
+                pixel_mask(t+t2) = SHR($80, t2)
+            NEXT t2
+        NEXT t
+
+    REM BitMap 0-1
+    REM ScrMem 0-15
+    SUB HiresSetup(VicBankPtr AS BYTE, BitmapPtr AS BYTE, ScreenMemPtr AS BYTE) STATIC
+        THIS.vic_bank_ptr = VicBankPtr
+        THIS.bitmap_ptr = BitmapPtr
+        THIS.screen_mem_ptr = ScreenMemPtr
+
+        THIS.vic_bank_addr = 16384 * CWORD(VicBankPtr)
+        THIS.bitmap_addr = THIS.vic_bank_addr + 8192 * BitmapPtr
+        THIS.screen_mem_addr = THIS.vic_bank_addr + 1024 * ScreenMemPtr
+
+        FOR ZP_B0 AS BYTE = 0 TO 199
+            ZP_W0 = bitmap_addr + (ZP_B0 AND 7) + CWORD(320) * SHR(ZP_B0, 3)
+            y_tbl_lo(tZP_B0) = PEEK(@ZP_W0)
+            y_tbl_hi(ZP_B0) = PEEK(@ZP_W0+1)
+        NEXT ZP_B0
+    END SUB
+
 END TYPE
 
 CONST DEFAULT_BITMAP = 1
@@ -36,34 +66,7 @@ DIM bitmap_addr AS WORD
 DIM scrmem_addr AS WORD
     scrmem_addr = 1024
 
-DIM y_tbl_hi(200) AS BYTE
-DIM y_tbl_lo(200) AS BYTE
 
-DIM x_tbl(200) AS BYTE
-DIM pixel_mask(200) AS BYTE
-    FOR t AS BYTE = 0 TO 192 STEP 8
-        FOR t2 AS BYTE = 0 TO 7
-            x_tbl(t+t2) = t
-            pixel_mask(t+t2) = SHR($80, t2)
-        NEXT t2
-    NEXT t
-
-REM BitMap 0-1
-REM ScrMem 0-15
-SUB HiresSetup(Bitmap AS BYTE, ScrMem AS BYTE) SHARED STATIC
-    _bitmap = Bitmap
-    _scrmem = ScrMem
-
-    bitmap_addr = vic_bank_addr + 8192 * _bitmap
-    scrmem_addr = vic_bank_addr + 1024 * _scrmem
-
-    FOR t AS BYTE = 0 TO 199
-        DIM addr AS WORD
-        addr = bitmap_addr + (t AND 7) + CWORD(320) * SHR(t, 3)
-        y_tbl_lo(t) = PEEK(@addr)
-        y_tbl_hi(t) = PEEK(@addr+1)
-    NEXT t
-END SUB
 
 SUB hires_mode() SHARED STATIC
     rem -- BITMAP 0 to 1, SCRMEM 0 to 15

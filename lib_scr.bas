@@ -1,5 +1,5 @@
-INCLUDE "lib_memory.bas"
-INCLUDE "lib_char.bas"
+'INCLUDE "lib_memory.bas"
+'INCLUDE "lib_char.bas"
 
 DECLARE SUB WaitRasterLine256() SHARED STATIC
 

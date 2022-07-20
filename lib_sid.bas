@@ -35,16 +35,25 @@ TYPE SidInfo
 
     SUB Stop() STATIC
         ASM
+            sei
+            dec $d019       ; ACK any raster IRQs
+
             lda #$31
             sta $314
             lda #$ea
             sta $315
 
             ; Reset SID
+            lda #0          ; disable raster interrupts
+            sta $d01a
             lda #$ff
-reset_sid_loop:    
+            sta $dc0d       ; enable cia interrupts
+            sta $dd0d
+reset_sid_loop:
+            inc 1024    
             ldx #$17
 reset_sid_0:
+            inc 1025    
             sta $d400,x
             dex
             bpl reset_sid_0
@@ -54,9 +63,11 @@ reset_sid_0:
             bpl reset_sid_loop
 reset_sid_1:
 reset_sid_2:
+            inc 1026    
             bit $d011
             bpl reset_sid_2
 reset_sid_3:
+            inc 1027    
             bit $d011
             bmi reset_sid_3
             eor #$08
@@ -64,7 +75,12 @@ reset_sid_3:
 
             lda #$0f
             sta $d418
+the_end:
+            inc 1028    
+            cli
+            inc 1029
         END ASM
+        POKE 1030, 41
     END SUB
 
     SUB Play(TuneNr AS BYTE) STATIC
@@ -94,6 +110,7 @@ reset_sid_3:
 
             lda #$7f        ; CIA interrupt off
             sta $dc0d
+            sta $dd0d
 
             lda #$01        ; Raster interrupt on
             sta $d01a
@@ -106,19 +123,19 @@ reset_sid_3:
             sta $d012
 
             lda $dc0d       ; Acknowledge IRQ (to be sure)
+            lda $dd0d       ; Acknowledge IRQ (to be sure)
             lda {TuneNr}
 jsr_init:
             jsr $dead       ; Initialize music
             cli
 
-            rts
-
+            jmp sid_play_end
 irq:
             dec $d019       ; ACK any raster IRQs
 jsr_play:
             jsr $dead       ; Play the music
-
             jmp $ea31
+sid_play_end:
         END ASM
     END SUB
 END TYPE

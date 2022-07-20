@@ -1,3 +1,4 @@
+'INCLUDE "lib_color.bas"
 'INCLUDE "lib_memory.bas"
 'INCLUDE "lib_char.bas"
 
@@ -18,11 +19,19 @@ TYPE TextScreen
     char_mem_ptr AS BYTE
     char_mem_addr AS WORD
 
-    SUB Init(VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) STATIC
+    SUB Init(VicBankPtr AS BYTE, ScreenMemPtr AS BYTE, CharMemPtr AS BYTE) STATIC OVERLOAD
         THIS.vic_bank_ptr = VicBankPtr
         THIS.vic_bank_addr = 16384 * CWORD(VicBankPtr)
         THIS.screen_mem_ptr = ScreenMemPtr
         THIS.screen_mem_addr = THIS.vic_bank_addr + 1024 * CWORD(ScreenMemPtr)
+        THIS.char_mem_ptr = CharMemPtr
+        THIS.char_mem_addr = 2048 * CWORD(CharMemPtr)
+        THIS.BorderColor = COLOR_BLACK
+        THIS.ScreenColor = COLOR_DARKGRAY
+    END SUB
+
+    SUB Init() STATIC OVERLOAD
+        CALL THIS.Init(0, 1, 2)
     END SUB
 
     SUB DoubleBuffer(ScreenMemPtr AS BYTE) STATIC
@@ -53,15 +62,16 @@ TYPE TextScreen
     SUB Activate() STATIC
         REM Vic Bank
         POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
+        
         REM -- Bitmap mode off
-        POKE $d011, peek($d011) AND %11011111
+        POKE $d011, %00011011
 
         REM -- Screen address
-        SCREEN THIS.screen_mem_ptr
-        ' POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR %0101
+        ' SCREEN THIS.screen_mem_ptr
+        POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR SHL(THIS.char_mem_ptr, 1)
 
-        REM -- Font address
-        POKE $d018, (PEEK($d018) AND %11110001) OR SHL(THIS.char_mem_ptr, 1)
+        REM -- Multicolor mode
+        POKE $d016, %11001000
 
         RegBorderColor = THIS.BorderColor
         RegScreenColor = THIS.ScreenColor

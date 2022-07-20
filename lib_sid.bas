@@ -33,12 +33,13 @@ TYPE SidInfo
         MEMCPY StartAddr + $7e, THIS.Base, THIS.Length
     END SUB
 
-    SUB Play(TuneNr AS BYTE) STATIC
-        DIM InitAddr AS WORD
-            InitAddr = THIS.Init
-        DIM PlayAddr AS WORD
-            PlayAddr = THIS.Play
+    SUB Stop() STATIC
         ASM
+            lda #$31
+            sta $314
+            lda #$ea
+            sta $315
+
             ; Reset SID
             lda #$ff
 reset_sid_loop:    
@@ -63,7 +64,16 @@ reset_sid_3:
 
             lda #$0f
             sta $d418
+        END ASM
+    END SUB
 
+    SUB Play(TuneNr AS BYTE) STATIC
+        DIM InitAddr AS WORD
+            InitAddr = THIS.Init
+        DIM PlayAddr AS WORD
+            PlayAddr = THIS.Play
+        CALL THIS.Stop()
+        ASM
             ; Set addresses
             lda {InitAddr}
             sta jsr_init + 1
@@ -111,6 +121,5 @@ jsr_play:
             jmp $ea31
         END ASM
     END SUB
-
 END TYPE
 

@@ -3,9 +3,6 @@ INCLUDE "lib_char.bas"
 
 DECLARE SUB WaitRasterLine256() SHARED STATIC
 
-DIM SHARED border_color AS BYTE @53280
-DIM SHARED screen_color AS BYTE @53281
-
 TYPE TextScreen
     BorderColor AS BYTE
     ScreenColor AS BYTE
@@ -54,6 +51,7 @@ TYPE TextScreen
     END SUB
 
     SUB Activate() STATIC
+        REM Vic Bank
         POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
         REM -- Bitmap mode off
         POKE $d011, peek($d011) AND %11011111
@@ -65,8 +63,8 @@ TYPE TextScreen
         REM -- Font address
         POKE $d018, (PEEK($d018) AND %11110001) OR SHL(THIS.char_mem_ptr, 1)
 
-        border_color = THIS.BorderColor
-        screen_color = THIS.ScreenColor
+        RegBorderColor = THIS.BorderColor
+        RegScreenColor = THIS.ScreenColor
     END SUB
 
     SUB Fill(Char AS BYTE, Color AS BYTE) STATIC

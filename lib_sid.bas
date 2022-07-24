@@ -1,4 +1,5 @@
 'INCLUDE "lib_hex.bas"
+'INCLUDE "lib_irq.bas"
 
 TYPE SidInfo
     Init AS WORD
@@ -34,26 +35,13 @@ TYPE SidInfo
     END SUB
 
     SUB Stop() STATIC
+        CALL IrqSid(0)
+
         ASM
-            sei
-            dec $d019       ; ACK any raster IRQs
-
-            lda #$31
-            sta $314
-            lda #$ea
-            sta $315
-
             ; Reset SID
-            lda #0          ; disable raster interrupts
-            sta $d01a
-            lda #$ff
-            sta $dc0d       ; enable cia interrupts
-            sta $dd0d
 reset_sid_loop:
-            inc 1024    
             ldx #$17
 reset_sid_0:
-            inc 1025    
             sta $d400,x
             dex
             bpl reset_sid_0
@@ -63,11 +51,9 @@ reset_sid_0:
             bpl reset_sid_loop
 reset_sid_1:
 reset_sid_2:
-            inc 1026    
             bit $d011
             bpl reset_sid_2
 reset_sid_3:
-            inc 1027    
             bit $d011
             bmi reset_sid_3
             eor #$08
@@ -76,11 +62,7 @@ reset_sid_3:
             lda #$0f
             sta $d418
 the_end:
-            inc 1028    
-            cli
-            inc 1029
         END ASM
-        POKE 1030, 41
     END SUB
 
     SUB Play(TuneNr AS BYTE) STATIC
@@ -92,51 +74,33 @@ the_end:
         ASM
             ; Set addresses
             lda {InitAddr}
-            sta jsr_init + 1
+            sta jsr_init+1
             lda {InitAddr}+1
-            sta jsr_init + 2
+            sta jsr_init+2
 
             lda {PlayAddr}
-            sta jsr_play + 1
+            sta jsr_play+1
             lda {PlayAddr}+1
-            sta jsr_play + 2
+            sta jsr_play+2
 
-            ; Set IRQ
-            sei 
-            lda #<irq
-            sta $0314
-            lda #>irq
-            sta $0315
-
-            lda #$7f        ; CIA interrupt off
-            sta $dc0d
-            sta $dd0d
-
-            lda #$01        ; Raster interrupt on
-            sta $d01a
-
-            lda $d011
-            and #%01111111  ; High bit of interrupt position = 0
-            sta $d011
-
-            lda #$00        ; Line where next IRQ happens
-            sta $d012
-
-            lda $dc0d       ; Acknowledge IRQ (to be sure)
-            lda $dd0d       ; Acknowledge IRQ (to be sure)
             lda {TuneNr}
 jsr_init:
             jsr $dead       ; Initialize music
-            cli
 
-            jmp sid_play_end
-irq:
-            dec $d019       ; ACK any raster IRQs
+            lda #<jsr_play
+            sta {ZP_W0}
+            lda #>jsr_play
+            sta {ZP_W0}+1
+
+            jmp sid_irq_end
+
 jsr_play:
-            jsr $dead       ; Play the music
-            jmp $ea31
-sid_play_end:
+            jsr $dead
+            jmp ({irq_sid_return_addr})
+
+sid_irq_end:
         END ASM
+        CALL IrqSid(ZP_W0)
     END SUB
 END TYPE
 

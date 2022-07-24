@@ -26,8 +26,8 @@ TYPE TextScreen
         THIS.screen_mem_addr = THIS.vic_bank_addr + 1024 * CWORD(ScreenMemPtr)
         THIS.char_mem_ptr = CharMemPtr
         THIS.char_mem_addr = 2048 * CWORD(CharMemPtr)
-        THIS.BorderColor = COLOR_BLACK
-        THIS.ScreenColor = COLOR_DARKGRAY
+        THIS.BorderColor = COLOR_LIGHTBLUE
+        THIS.ScreenColor = COLOR_BLUE
     END SUB
 
     SUB Init() STATIC OVERLOAD

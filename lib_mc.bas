@@ -46,9 +46,9 @@ TYPE TypeMCBitmap
         THIS.bitmap_ptr = BitmapPtr
         THIS.screen_mem_ptr = ScreenMemPtr
 
-        THIS.vic_bank_addr = 16384 * CWORD(VicBankPtr)
-        THIS.bitmap_addr = THIS.vic_bank_addr + 8192 * BitmapPtr
-        THIS.screen_mem_addr = THIS.vic_bank_addr + 1024 * ScreenMemPtr
+        THIS.vic_bank_addr = CWORD(16384) * CWORD(VicBankPtr)
+        THIS.bitmap_addr = THIS.vic_bank_addr + CWORD(8192) * CWORD(BitmapPtr)
+        THIS.screen_mem_addr = THIS.vic_bank_addr + CWORD(1024) * CWORD(ScreenMemPtr)
 
         FOR ZP_B0 AS BYTE = 0 TO 199
             y_tbl(ZP_B0) = THIS.bitmap_addr + (ZP_B0 AND 7) + CWORD(320) * SHR(ZP_B0, 3)

@@ -305,6 +305,14 @@ SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED ST
     LOOP
 END SUB
 
+FUNCTION SprGeomDx AS BYTE(Angle AS BYTE, Radial AS BYTE) SHARED STATIC
+    RETURN RotX(SHL(Angle,3) OR Radial) - 11
+END FUNCTION
+
+FUNCTION SprGeomDy AS BYTE(Angle AS BYTE, Radial AS BYTE) SHARED STATIC
+    RETURN RotY(SHL(Angle,3) OR Radial) - 10
+END FUNCTION
+
 _pixel_mask:
 DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01
 DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01

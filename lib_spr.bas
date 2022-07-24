@@ -1,11 +1,6 @@
 'INCLUDE "lib_memory.bas"
 'INCLUDE "lib_types.bas"
-
-REM **************************************
-REM LIBRARY CONVENTIONS
-REM   TRUE  = $ff
-REM   FALSE = $00
-REM **************************************
+'INCLUDE "lib_irq.bas"
 
 REM **************************************
 REM 16 / 24 / 32 (only 16 tested)
@@ -137,8 +132,8 @@ DIM SHARED SprPriority(MAX_NUM_SPRITES) AS BYTE
 REM ****************************************************************************
 REM  INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL 
 REM ****************************************************************************
-DECLARE SUB spr_init_mode8() STATIC
-DECLARE SUB spr_init_mode16() STATIC
+DECLARE SUB spr_mode8_init() STATIC
+DECLARE SUB spr_mode16_init() STATIC
 
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
@@ -188,26 +183,26 @@ SUB SprInit(Mode AS BYTE) SHARED STATIC
     spr_num_sprites = Mode
     spr_ptrs = vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 
-    FOR t AS BYTE = 0 TO spr_num_sprites-1
-        spr_x(t) = 0
-        spr_y(t) = 255
-        spr_yy(t) = 255
-        spr_e(t) = 0
+    FOR ZP_B0 = 0 TO spr_num_sprites-1
+        spr_x(ZP_B0) = 0
+        spr_y(ZP_B0) = 255
+        spr_yy(ZP_B0) = 255
+        spr_e(ZP_B0) = 0
 
-        SprColor(t) = 1
-        SprWidth(t) = 12
-        SprHeight(t) = 21
-        SprCollision(t) = 0
-        SprDoubleX(t) = 0
-        SprDoubleY(t) = 0
-        SprMultiColor(t) = 0
-        SprPriority(t) = 0
-    NEXT t
+        SprColor(ZP_B0) = 1
+        SprWidth(ZP_B0) = 12
+        SprHeight(ZP_B0) = 21
+        SprCollision(ZP_B0) = 0
+        SprDoubleX(ZP_B0) = 0
+        SprDoubleY(ZP_B0) = 0
+        SprMultiColor(ZP_B0) = 0
+        SprPriority(ZP_B0) = 0
+    NEXT ZP_B0
 
     IF spr_num_sprites < 9 THEN
-        CALL spr_init_mode8()
+        CALL spr_mode8_init()
     ELSE
-        CALL spr_init_mode16()
+'        CALL spr_mode16_init()
     END IF
 END SUB
 
@@ -232,6 +227,42 @@ END SUB
 FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
     RETURN spr_e(SprNr)
 END FUNCTION
+
+SUB SprDxDy(SprNr AS BYTE, dx AS BYTE, dy AS BYTE) SHARED STATIC
+    ASM
+        ldx {SprNr}
+
+        clc                     ; spr_reg_xy(SprNr).y = y + 50
+        lda {spr_yy},x
+        adc {dy}
+        sta {spr_yy},x          ; spr_y(SprNr) = y + 50
+        
+        ldy {spr_e},x
+        beq spr_dxdy_x
+
+        sta {spr_y},x
+
+spr_dxdy_x:
+        CLC                     ; preserve sign bit
+        LDA {dx}
+        BPL spr_dxdy_positive
+        SEC
+spr_dxdy_positive:
+        ROR
+
+        clc
+        adc {spr_x},x
+
+        cmp #252
+        bcc spr_dxdy_no_bad_zone
+
+        sec                     ; THEN x -= 8
+        sbc #4
+
+spr_dxdy_no_bad_zone:
+        sta {spr_x},x
+    END ASM
+END SUB
 
 SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
     ASM
@@ -292,11 +323,11 @@ spr_collision_loop:
         bcs spr_dy_positive
         eor #$ff                            ; Negate result
         adc #1
-        cmp {SprHeight},x                       ; Compare distance to enemy height
+        cmp {SprHeight},x                   ; Compare distance to enemy height
         jmp spr_check_y_branch
 
 spr_dy_positive:
-        cmp {SprHeight},y                       ; Compare distance to player height
+        cmp {SprHeight},y                   ; Compare distance to player height
 spr_check_y_branch:
         bcs spr_check_no_coll
 
@@ -306,11 +337,11 @@ spr_check_y_branch:
         bcs spr_dx_positive
         eor #$ff                            ; Negate result
         adc #1
-        cmp {SprWidth},x                       ; compare distance to enemy width
+        cmp {SprWidth},x                    ; compare distance to enemy width
         jmp spr_check_x_branch
 
 spr_dx_positive:
-        cmp {SprWidth},y                       ; Compare distance to player width
+        cmp {SprWidth},y                    ; Compare distance to player width
 spr_check_x_branch:
         bcs spr_check_no_coll
         lda #$ff
@@ -346,94 +377,83 @@ non_blocking:
     END ASM
 END SUB
 
-SUB spr_init_mode8() STATIC
+SUB spr_mode8_init() STATIC
     ASM
-IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
+        lda {spr_ptrs}
+        sta mode8_irq_sprf+1
+        lda {spr_ptrs}+1
+        sta mode8_irq_sprf+2
 
-;Routine to init the raster interrupt system
-                lda {spr_ptrs}
-                sta synchro_irq_sprf+1
-                lda {spr_ptrs}+1
-                sta synchro_irq_sprf+2
+        lda #<mode8_irq
+        sta {ZP_W0}
+        lda #>mode8_irq
+        sta {ZP_W0}+1
 
-                sei
-                lda #<synchro_irq
-                sta $0314
-                lda #>synchro_irq
-                sta $0315
-                lda #$7f                        ;CIA interrupt off
-                sta $dc0d
-                lda #$01                        ;Raster interrupt on
-                sta $d01a
-                lda $d011
-                and #%01111111                  ;High bit of interrupt position = 0
-                sta $d011
-                lda #IRQ1LINE                   ;Line where next IRQ happens
-                sta $d012
-                lda $dc0d                       ;Acknowledge IRQ (to be sure)
-                cli
-                jmp synchro_end
+        jmp mode8_end
+;-----------------------------------
+mode8_irq:
+;-----------------------------------
+        ;inc $d020
+        lda {sprupdateflag}             ;New sprites to be sorted?
+        beq mode8_irq_exit
+        lda #$00
+        sta {sprupdateflag}
 
-;Raster interrupt 1. This is where sorting happens.
-synchro_irq:
-                dec $d019                       ;Acknowledge raster interrupt
-                lda {sprupdateflag}             ;New sprites to be sorted?
-                beq synchro_irq_exit
-                lda #$00
-                sta {sprupdateflag}
+        ;inc $d020                       ; debug
+        ldy #7
+        ldx #14
+mode8_irq_loop:
+        lda {spr_x},y
+        asl
+        sta $d000,x
+        rol $d010
 
-                ;inc $d020                       ; debug
-                ldy #7
-                ldx #14
-synchro_loop:
-                lda {spr_x},y
-                asl
-                sta $d000,x
-                rol $d010
+        lda {spr_y},y
+        sta $d001,x
 
-                lda {spr_y},y
-                sta $d001,x
+        lda {SprColor},y
+        sta $d027,y
 
-                lda {SprColor},y
-                sta $d027,y
+        lda {SprFrame},y
+mode8_irq_sprf:
+        sta {spr_ptrs},y
 
-                lda {SprFrame},y
-synchro_irq_sprf:
-                sta {spr_ptrs},y
+        lda {spr_e},y
+        rol
+        rol $d015
 
-                lda {spr_e},y
-                rol
-                rol $d015
+        lda {SprDoubleX},y
+        rol
+        rol $d01d
 
-                lda {SprDoubleX},y
-                rol
-                rol $d01d
+        lda {SprDoubleY},y
+        rol
+        rol $d017
 
-                lda {SprDoubleY},y
-                rol
-                rol $d017
+        lda {SprMultiColor},y
+        rol
+        rol $d01c
 
-                lda {SprMultiColor},y
-                rol
-                rol $d01c
+        lda {SprPriority},y
+        rol
+        rol $d01b
 
-                lda {SprPriority},y
-                rol
-                rol $d01b
+        dex
+        dex
+        dey
+        bpl mode8_irq_loop
+        ;dec $d020                       ; debug
 
-                dex
-                dex
-                dey
-                bpl synchro_loop
-                ;dec $d020                       ; debug
-
-synchro_irq_exit:
-                jmp $ea81
-synchro_end:
+mode8_irq_exit:
+        jmp ({irq_spr_return_addr})
+;-----------------------------------
+mode8_end:
+;-----------------------------------
     END ASM
+    CALL IrqSpr(ZP_W0)
 END SUB
 
-SUB spr_init_mode16() STATIC
+SUB spr_mode16_init() STATIC
     sortedsprites = 0
     sprupdateflag = 0
     FOR t AS BYTE = 0 TO spr_num_sprites-1
@@ -444,33 +464,23 @@ SUB spr_init_mode16() STATIC
 MAXSPR          = 16                            ;Maximum number of sprites
 IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
 
-;Routine to init the raster interrupt system
-initraster:
-                lda {spr_ptrs}
-                sta irq2_sprf+1
-                lda {spr_ptrs}+1
-                sta irq2_sprf+2
+        lda {spr_ptrs}
+        sta irq2_sprf+1
+        lda {spr_ptrs}+1
+        sta irq2_sprf+2
 
-                sei
-                lda #<irq1
-                sta $0314
-                lda #>irq1
-                sta $0315
-                lda #$7f                        ;CIA interrupt off
-                sta $dc0d
-                lda #$01                        ;Raster interrupt on
-                sta $d01a
-                lda $d011
-                and #%01111111                  ;High bit of interrupt position = 0
-                sta $d011
-                lda #IRQ1LINE                   ;Line where next IRQ happens
-                sta $d012
-                lda $dc0d                       ;Acknowledge IRQ (to be sure)
-                cli
-                jmp multiplex_end
+        lda #<mode16_irq
+        sta {ZP_W0}
+        lda #>mode16_irq
+        sta {ZP_W0}+1
+
+        jmp mode16_end
 
 ;Raster interrupt 1. This is where sorting happens.
-irq1:           dec $d019                       ;Acknowledge raster interrupt
+;-----------------------------------
+mode16_irq:
+;-----------------------------------
+;                dec $d019                       ;Acknowledge raster interrupt
                 lda #$ff                        ;Move all sprites
                 sta $d001                       ;to the bottom to prevent
                 sta $d003                       ;weird effects when sprite
@@ -508,8 +518,6 @@ irq1_notmorethan8:
                 jmp irq2_direct                 ;Go directly; we might be late
 irq1_nospritesatall:
                 jmp $ea81
-
-irq1_update_sprf:
 
 irq1_beginsort: ;inc $d020                      ; debug
                 ldx #$00
@@ -558,7 +566,10 @@ irq1_sortloop3: ldy {sortorder},x               ;Final loop:
                 jmp irq1_nonewsprites
 
 ;Raster interrupt 2. This is where sprite displaying happens
-irq2:           dec $d019                       ;Acknowledge raster interrupt
+;-----------------------------------
+irq2:
+;-----------------------------------
+                dec $d019                       ;Acknowledge raster interrupt
 irq2_direct:    ldy {sprirqcounter}             ;Take next sorted sprite number
                 lda sortspry,y                  ;Take Y-coord of first new sprite
                 clc
@@ -586,7 +597,7 @@ irq2_msbok:
                 ldx physicalsprtbl1,y           ;Physical sprite number x 1
                 lda sortsprf,y
 irq2_sprf:
-                sta $dead,x              ;for color & frame
+                sta $dead,x                     ;for color & frame
                 lda sortsprc,y
                 sta $d027,x
                 
@@ -601,9 +612,9 @@ irq2_endspr:    cmp #$ff                        ;Was it the endmark?
                 bcc irq2_direct                 ;Then go directly to next IRQ
                 sta $d012
                 jmp $ea81
-irq2_lastspr:   lda #<irq1                      ;Was the last sprite,
+irq2_lastspr:   lda {IrqHandler}               ;Was the last sprite,
                 sta $0314                       ;go back to irq1
-                lda #>irq1                      ;(sorting interrupt)
+                lda {IrqHandler}+1               ;(sorting interrupt)
                 sta $0315
                 lda #IRQ1LINE
                 sta $d012
@@ -661,6 +672,7 @@ ortbl:          dc.b 1
                 dc.b 64
                 dc.b 255-128
                 dc.b 128
-multiplex_end:
+mode16_end:
     END ASM
+    CALL IrqSpr(ZP_W0)
 END SUB

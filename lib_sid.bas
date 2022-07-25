@@ -70,7 +70,7 @@ the_end:
             InitAddr = THIS.Init
         DIM PlayAddr AS WORD
             PlayAddr = THIS.Play
-        CALL THIS.Stop()
+        ' CALL THIS.Stop()
         ASM
             ; Set addresses
             lda {InitAddr}

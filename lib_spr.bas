@@ -202,8 +202,12 @@ SUB SprInit(Mode AS BYTE) SHARED STATIC
     IF spr_num_sprites < 9 THEN
         CALL spr_mode8_init()
     ELSE
-'        CALL spr_mode16_init()
+        CALL spr_mode16_init()
     END IF
+END SUB
+
+SUB SprStop() SHARED STATIC
+    CALL IrqSpr(0)
 END SUB
 
 SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
@@ -394,12 +398,12 @@ SUB spr_mode8_init() STATIC
 mode8_irq:
 ;-----------------------------------
         ;inc $d020
-        lda {sprupdateflag}             ;New sprites to be sorted?
+        lda {sprupdateflag}                 ;Update sprite properties
         beq mode8_irq_exit
         lda #$00
         sta {sprupdateflag}
 
-        ;inc $d020                       ; debug
+        ;inc $d020                          ; debug
         ldy #7
         ldx #14
 mode8_irq_loop:

@@ -72,36 +72,38 @@ IRQ1LINE        = $fc               ;This is the place on screen where the sorti
 
     lda #$7f                        ;CIA interrupt off
     sta $dc0d
-    sta $dd0d
-    
-    lda #$01                        ;Raster interrupt on
-    sta $d01a
-
-    lda $d011
-    and #%01111111                  ;High bit of interrupt position = 0
+;    sta $dd0d
+    and $d011                       ;High bit of interrupt position = 0
     sta $d011
-
+    
     lda #IRQ1LINE                   ;Line where next IRQ happens
     sta $d012
 
     lda $dc0d                       ;Acknowledge IRQ (to be sure)
-    lda $dd0d                       ;Acknowledge IRQ (to be sure)
-    dec $d019                       ;Acknowledge raster (to be sure)
+;    lda $dd0d                       ;Acknowledge IRQ (to be sure)
+
+    lda #$01
+    sta $d019                        ;Acknowledge raster (to be sure)
+    sta $d01a                        ;Raster interrupt on
+
     cli
 
     jmp irq_end
 ;-----------------------------------
 irq_handler:
 ;-----------------------------------
-    dec $d019                   ; ACK any raster IRQs
+    lda #$ff                        ; ACK any VIC IRQs
+    sta $d019
+
     inc $d020
 
     jmp ({irq_sid_addr})
 irq_handler_sid_return:
 
+    inc $d020
     jmp ({irq_spr_addr})
 irq_handler_spr_return:
-    nop
+    dec $d020
     dec $d020
     jmp $ea31
 ;-----------------------------------

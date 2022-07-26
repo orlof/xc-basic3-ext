@@ -4,7 +4,7 @@
 
 DECLARE SUB WaitRasterLine256() SHARED STATIC
 
-TYPE TextScreen
+TYPE ScreenText
     BorderColor AS BYTE
     ScreenColor AS BYTE
 

@@ -92,6 +92,9 @@ IRQ1LINE        = $fc               ;This is the place on screen where the sorti
 ;-----------------------------------
 irq_handler:
 ;-----------------------------------
+    ; BIT $D019
+    ; BPL NotVICTryCIA
+    ; IRQ_from_VIC:
     lda #$ff                        ; ACK any VIC IRQs
     sta $d019
 

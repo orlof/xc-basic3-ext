@@ -28,7 +28,7 @@ DIM color_pattern(4) AS BYTE @_color_pattern
 _color_pattern:
 DATA AS BYTE %00000000, %01010101, %10101010, %11111111
 
-TYPE TypeMCBitmap
+TYPE ScreenMultiColor
     BorderColor AS BYTE
     ScreenColor AS BYTE
 

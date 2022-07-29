@@ -95,19 +95,22 @@ irq_handler:
     ; BIT $D019
     ; BPL NotVICTryCIA
     ; IRQ_from_VIC:
+    nop
     lda #$ff                        ; ACK any VIC IRQs
     sta $d019
 
-    inc $d020
+    lda #13
+    sta $d020
 
     jmp ({irq_sid_addr})
 irq_handler_sid_return:
 
-    inc $d020
+    lda #5
+    sta $d020
     jmp ({irq_spr_addr})
 irq_handler_spr_return:
-    dec $d020
-    dec $d020
+    lda #0
+    sta $d020
     jmp $ea31
 ;-----------------------------------
 irq_end:

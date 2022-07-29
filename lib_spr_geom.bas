@@ -21,6 +21,8 @@ DIM ReqAngle(MAX_NUM_SPRITES) AS BYTE
 DIM CurGeom(MAX_NUM_SPRITES) AS WORD
 DIM ReqGeom(MAX_NUM_SPRITES) AS WORD
 
+DIM NeedsUpdate(MAX_NUM_SPRITES) AS BYTE
+
 DIM sprite_line_x1 AS BYTE FAST
 DIM sprite_line_y1 AS BYTE FAST
 DIM sprite_line_x2 AS BYTE FAST
@@ -48,12 +50,17 @@ SUB SprGeomInit() SHARED STATIC
         CurGeom(t) = 0
         ReqAngle(t) = 0
         ReqGeom(t) = 0
+        NeedsUpdate(t) = FALSE
     NEXT t
 END SUB
 
 SUB SprGeomRequestSpriteUpdate(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-    ReqAngle(SprNr) = Angle
-    ReqGeom(SprNr) = GeometryAddr
+    ZP_B0 = Angle AND %11111000
+    IF ZP_B0 <> CurAngle(SprNr) OR GeometryAddr <> CurGeom(SprNr) THEN
+        ReqAngle(SprNr) = ZP_B0
+        ReqGeom(SprNr) = GeometryAddr
+        NeedsUpdate(SprNr) = TRUE
+    END IF
 END SUB
 
 DIM NextSprNr AS BYTE
@@ -62,8 +69,9 @@ SUB SprGeomProcessRequests(MaxRequests AS BYTE) SHARED STATIC
     DIM StartSprNr AS BYTE
         StartSprNr = NextSprNr
     DO
-        IF ReqGeom(NextSprNr) <> 0 AND (CurAngle(NextSprNr) <> ReqAngle(NextSprNr) OR CurGeom(NextSprNr) <> ReqGeom(NextSprNr)) THEN
+        IF NeedsUpdate(NextSprNr) THEN
             CALL SprGeomUpdateSprite(NextSprNr, ReqGeom(NextSprNr), ReqAngle(NextSprNr)) 
+            NeedsUpdate(NextSprNr) = FALSE
             MaxRequests = MaxRequests - 1
         END IF
 
@@ -109,7 +117,7 @@ SUB SprGeomPrepare(GeometryAddr AS WORD) SHARED STATIC
 END SUB
 
 SUB SprGeomLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
-    ZP_W0 = vic_bank_addr + SHL(CWORD(FramePtr), 6)
+    ZP_W0 = spr_vic_bank_addr + SHL(CWORD(FramePtr), 6)
     sprite_line_x1 = x0
     sprite_line_y1 = y0
     sprite_line_x2 = x1
@@ -276,7 +284,7 @@ REM Special Values occupy unused Angles in Radial 0 circle and thus center point
 REM must always be addressed with 0, 0 - even thou in theory all angles with
 REM Radial 0 represent same point (center). 
 SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-    ZP_W0 = vic_bank_addr + SHL(CWORD(FramePtr), 6)
+    ZP_W0 = spr_vic_bank_addr + SHL(CWORD(FramePtr), 6)
     Angle = Angle AND %11111000
 
     DIM Index AS BYTE

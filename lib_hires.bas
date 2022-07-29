@@ -53,7 +53,7 @@ TYPE ScreenHires
         POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR SHL(THIS.bitmap_ptr, 3)
 
         REM -- Bitmap mode on
-        POKE $d011, PEEK($d011) OR %00100000
+        POKE $d011, (PEEK($d011) AND %01111111) OR %00100000
 
         REM -- Multicolor mode
         POKE $d016, PEEK($d016) AND %11101111

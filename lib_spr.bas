@@ -35,7 +35,7 @@ REM NOTE Both modes intialise a raster interrupt that updates sprite data
 REM      from cache arrays to IO registers during off-screen. Update is
 REM      triggered with SprUpdate.
 REM ****************************************************************************
-DECLARE SUB SprInit(Mode AS BYTE) SHARED STATIC
+DECLARE SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Commit all changes from cache arrays to IO registers.
@@ -141,6 +141,9 @@ DIM spr_ptrs AS WORD
 DIM SHARED spr_num_sprites AS BYTE
     spr_num_sprites = MAX_NUM_SPRITES
 
+DIM SHARED spr_vic_bank_ptr AS BYTE
+DIM SHARED spr_vic_bank_addr AS WORD
+
 DIM spr_reg_mc AS BYTE @$d01c
 DIM spr_reg_dx AS BYTE @$d01d
 DIM spr_reg_dy AS BYTE @$d017
@@ -179,9 +182,12 @@ SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
     MEMSET @SprPriority, MAX_NUM_SPRITES, Value
 END SUB
 
-SUB SprInit(Mode AS BYTE) SHARED STATIC
+SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE) SHARED STATIC
+    spr_vic_bank_ptr = VicBankPtr
+    spr_vic_bank_addr = 16384 * CWORD(VicBankPtr)
+
     spr_num_sprites = Mode
-    spr_ptrs = vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
+    spr_ptrs = spr_vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
 
     FOR ZP_B0 = 0 TO spr_num_sprites-1
         spr_x(ZP_B0) = 0
@@ -211,7 +217,7 @@ SUB SprStop() SHARED STATIC
 END SUB
 
 SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
-    MEMSET vic_bank_addr + SHL(CWORD(FramePtr), 6), 63, 0
+    MEMSET spr_vic_bank_addr + SHL(CWORD(FramePtr), 6), 63, 0
 END SUB
 
 SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD

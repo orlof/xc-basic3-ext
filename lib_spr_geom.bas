@@ -35,8 +35,8 @@ DIM SHARED RotX(256) AS BYTE @ _RotX
 DIM SHARED RotY(256) AS BYTE @ _RotY
 DIM pixel_mask(24) AS BYTE @_pixel_mask
 
-CONST END_SHAPE  = $10
-CONST NO_DRAW    = $20
+SHARED CONST END_SHAPE  = $10
+SHARED CONST NO_DRAW    = $20
 
 REM ****************************************************************************
 REM CALL spr_init()

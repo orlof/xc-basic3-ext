@@ -83,8 +83,8 @@ IRQ1LINE        = $fc               ;This is the place on screen where the sorti
 ;    lda $dd0d                       ;Acknowledge IRQ (to be sure)
 
     lda #$01
-    sta $d019                        ;Acknowledge raster (to be sure)
-    sta $d01a                        ;Raster interrupt on
+    sta $d019                       ;Acknowledge raster (to be sure)
+    sta $d01a                       ;Raster interrupt on
 
     cli
 
@@ -95,7 +95,6 @@ irq_handler:
     ; BIT $D019
     ; BPL NotVICTryCIA
     ; IRQ_from_VIC:
-    nop
     lda #$ff                        ; ACK any VIC IRQs
     sta $d019
 

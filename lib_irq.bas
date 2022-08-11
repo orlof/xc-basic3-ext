@@ -95,7 +95,7 @@ IRQ1LINE        = $fc               ;This is the place on screen where the sorti
 ;-----------------------------------
 irq_handler:
 ;-----------------------------------
-    sta 1025
+    inc $d020
     ; BIT $D019
     ; BPL NotVICTryCIA
     ; IRQ_from_VIC:
@@ -116,7 +116,7 @@ irq_routine_loop:
     lda {irq_routine_lo},x
     sta irq_routine_jsr + 1
 
-    inc $d020
+    ;inc $d020
 
     txa
     pha
@@ -128,11 +128,9 @@ irq_routine_jsr:
     jmp irq_routine_loop
 
 irq_handler_spr:
-    inc $d020
+    ;inc $d020
     jmp ({irq_spr_addr})
 irq_handler_spr_return:
-    lda #0
-    sta $d020
     jmp $ea31
 ;-----------------------------------
 irq_end:

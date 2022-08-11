@@ -3,21 +3,29 @@
 'INCLUDE "lib_spr.bas"
 
 DIM IrqHandler AS WORD SHARED
-DIM irq_sid_addr AS WORD SHARED
-DIM irq_sid_return_addr AS WORD SHARED
+
+DIM irq_routine_lo(5) AS BYTE
+DIM irq_routine_hi(5) AS BYTE
+FOR ZP_B0 = 0 TO 4
+    irq_routine_lo(ZP_B0) = $ff
+    irq_routine_hi(ZP_B0) = $ff
+NEXT
+
+'DIM irq_sid_addr AS WORD SHARED
+'DIM irq_sid_return_addr AS WORD SHARED
 DIM irq_spr_addr AS WORD SHARED
 DIM irq_spr_return_addr AS WORD SHARED
 
-SUB IrqSid(Addr AS WORD) SHARED STATIC
+SUB InstallIrqRoutine(Priority AS BYTE, Addr AS WORD) SHARED STATIC
     ASM
         sei
-    END ASM
-    IF Addr = 0 THEN
-        irq_sid_addr = irq_sid_return_addr
-    ELSE
-        irq_sid_addr = Addr
-    END IF
-    ASM
+
+        ldx {Priority}
+        lda {Addr}
+        sta {irq_routine_lo},x
+        lda {Addr}+1
+        sta {irq_routine_hi},x
+
         cli
     END ASM
 END SUB
@@ -48,13 +56,7 @@ END SUB
 
 ASM
 IRQ1LINE        = $fc               ;This is the place on screen where the sorting IRQ happens
-    lda #<irq_handler_sid_return
-    sta {irq_sid_addr}
-    sta {irq_sid_return_addr}
-    lda #>irq_handler_sid_return
-    sta {irq_sid_addr}+1
-    sta {irq_sid_return_addr}+1
-
+    sta 1024
     lda #<irq_handler_spr_return
     sta {irq_spr_addr}
     sta {irq_spr_return_addr}
@@ -89,23 +91,44 @@ IRQ1LINE        = $fc               ;This is the place on screen where the sorti
     cli
 
     jmp irq_end
+
 ;-----------------------------------
 irq_handler:
 ;-----------------------------------
+    sta 1025
     ; BIT $D019
     ; BPL NotVICTryCIA
     ; IRQ_from_VIC:
     lda #$ff                        ; ACK any VIC IRQs
     sta $d019
 
-    lda #13
-    sta $d020
+    ldx #5
+irq_routine_loop:
+    dex
+    bmi irq_handler_spr
 
-    jmp ({irq_sid_addr})
-irq_handler_sid_return:
+    lda {irq_routine_hi},x
+    cmp #$ff
+    beq irq_routine_loop
 
-    lda #5
-    sta $d020
+    sta irq_routine_jsr + 2
+
+    lda {irq_routine_lo},x
+    sta irq_routine_jsr + 1
+
+    inc $d020
+
+    txa
+    pha
+irq_routine_jsr:
+    jsr $beef
+    pla
+    tax
+
+    jmp irq_routine_loop
+
+irq_handler_spr:
+    inc $d020
     jmp ({irq_spr_addr})
 irq_handler_spr_return:
     lda #0

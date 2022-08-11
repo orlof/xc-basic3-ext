@@ -35,7 +35,7 @@ TYPE SidInfo
     END SUB
 
     SUB Stop() STATIC
-        CALL IrqSid(0)
+        CALL InstallIrqRoutine(4, $ffff)
 
         ASM
             ; Reset SID
@@ -96,11 +96,11 @@ jsr_init:
 
 jsr_play:
             jsr $dead
-            jmp ({irq_sid_return_addr})
+            rts
 
 sid_irq_end:
         END ASM
-        CALL IrqSid(ZP_W0)
+        CALL InstallIrqRoutine(4, ZP_W0)
     END SUB
 END TYPE
 

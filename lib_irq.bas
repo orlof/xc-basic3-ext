@@ -131,6 +131,7 @@ irq_handler_spr:
     ;inc $d020
     jmp ({irq_spr_addr})
 irq_handler_spr_return:
+    dec $d020
     jmp $ea31
 ;-----------------------------------
 irq_end:

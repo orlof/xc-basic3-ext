@@ -54,6 +54,10 @@ SUB SprGeomInit() SHARED STATIC
     NEXT t
 END SUB
 
+SUB SprGeomOrderSpriteUpdate(SprNr AS BYTE) SHARED STATIC
+    NeedsUpdate(SprNr) = TRUE
+END SUB
+
 SUB SprGeomRequestSpriteUpdate(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
     ZP_B0 = Angle AND %11111000
     IF ZP_B0 <> CurAngle(SprNr) OR GeometryAddr <> CurGeom(SprNr) THEN

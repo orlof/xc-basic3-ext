@@ -117,8 +117,10 @@ DIM SHARED SprColor(MAX_NUM_SPRITES) AS BYTE
 DIM SHARED SprFrame(MAX_NUM_SPRITES) AS BYTE
 
 REM Collision Detection
-DIM SHARED SprWidth(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprHeight(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprBoundingBoxLeft(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprBoundingBoxRight(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprBoundingBoxTop(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED SprBoundingBoxBottom(MAX_NUM_SPRITES) AS BYTE
 
 REM ****************************************************************************
 REM SPR_MODE_8 ONLY - R/W individual TRUE/FALSE sprite properties
@@ -196,8 +198,10 @@ SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE) SHARED STATIC
         spr_e(ZP_B0) = 0
 
         SprColor(ZP_B0) = 1
-        SprWidth(ZP_B0) = 12
-        SprHeight(ZP_B0) = 21
+        SprBoundingBoxLeft(ZP_B0) = 0
+        SprBoundingBoxRight(ZP_B0) = 12
+        SprBoundingBoxTop(ZP_B0) = 0
+        SprBoundingBoxBottom(ZP_B0) = 21
         SprCollision(ZP_B0) = 0
         SprDoubleX(ZP_B0) = 0
         SprDoubleY(ZP_B0) = 0
@@ -210,6 +214,13 @@ SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE) SHARED STATIC
     ELSE
         CALL spr_mode16_init()
     END IF
+END SUB
+
+SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
+    SprBoundingBoxLeft(SprNr) = SHR(Left, 1)
+    SprBoundingBoxRight(SprNr) = SHR(Right, 1)
+    SprBoundingBoxTop(SprNr) = Top
+    SprBoundingBoxBottom(SprNr) = Bottom
 END SUB
 
 SUB SprStop() SHARED STATIC
@@ -325,42 +336,76 @@ spr_collision_disabled_loop:
 
 spr_collision_loop:
         lda {spr_e},x
-        beq spr_check_no_coll
+        beq spr_collision_false
 
+spr_collision_check_y:
+        sec
         lda {spr_y},x                       ; Load Enemy Y position
-        sec
         sbc {spr_y},y                       ; Subtract Player Y position
-        bcs spr_dy_positive
+        bcs spr_collision_dy_positive       ; enemy_x >= player_x
         eor #$ff                            ; Negate result
-        adc #1
-        cmp {SprHeight},x                   ; Compare distance to enemy height
-        jmp spr_check_y_branch
+        adc #1                              ; carry must be clear
+                                            ; - absolute distance from top-left to top-left is in a
+                                            ; - player is right from enemy
+spr_collision_dy_negative:
+        clc
+        adc {SprBoundingBoxTop},y
+        bcs spr_collision_false
 
-spr_dy_positive:
-        cmp {SprHeight},y                   ; Compare distance to player height
-spr_check_y_branch:
-        bcs spr_check_no_coll
-
-        lda {spr_x},x                       ; Compare x coordinates
         sec
+        sbc {SprBoundingBoxBottom},x
+        bcs spr_collision_false
+
+        jmp spr_collision_check_x
+
+spr_collision_dy_positive:
+        clc
+        adc {SprBoundingBoxTop},x
+        bcs spr_collision_false
+
+        sec
+        sbc {SprBoundingBoxBottom},y
+        bcs spr_collision_false
+
+spr_collision_check_x:
+        sec
+        lda {spr_x},x                       ; Compare x coordinates
         sbc {spr_x},y                       ; Subtract Player X position
-        bcs spr_dx_positive
+        bcs spr_collision_dx_positive
         eor #$ff                            ; Negate result
         adc #1
-        cmp {SprWidth},x                    ; compare distance to enemy width
-        jmp spr_check_x_branch
 
-spr_dx_positive:
-        cmp {SprWidth},y                    ; Compare distance to player width
-spr_check_x_branch:
-        bcs spr_check_no_coll
+spr_collision_dx_negative:
+        clc
+        adc {SprBoundingBoxLeft},y
+        bcs spr_collision_false
+
+        sec
+        sbc {SprBoundingBoxRight},x
+        bcs spr_collision_false
+
+        jmp spr_collision_true
+
+spr_collision_dx_positive:
+        clc
+        adc {SprBoundingBoxLeft},x
+        bcs spr_collision_false
+
+        sec
+        sbc {SprBoundingBoxRight},y
+        bcs spr_collision_false
+
+spr_collision_true:
         lda #$ff
         dc.b $2c                            ; BIT instruction that skips next LDA
-spr_check_no_coll:
+
+spr_collision_false:
         lda #$00
         sta {SprCollision},x
+
         dex                                 ; Goes to next sprite
         bpl spr_collision_loop
+
 spr_collision_end:
         lda #0
         sta {SprCollision},y

@@ -39,6 +39,7 @@ TYPE SidInfo
 
         ASM
             ; Reset SID
+            lda #$ff
 reset_sid_loop:
             ldx #$17
 reset_sid_0:

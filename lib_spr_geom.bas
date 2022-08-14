@@ -35,6 +35,11 @@ DIM SHARED RotX(256) AS BYTE @ _RotX
 DIM SHARED RotY(256) AS BYTE @ _RotY
 DIM pixel_mask(24) AS BYTE @_pixel_mask
 
+DIM BoundingBoxLeft AS BYTE
+DIM BoundingBoxRight AS BYTE
+DIM BoundingBoxTop AS BYTE
+DIM BoundingBoxBottom AS BYTE
+
 SHARED CONST END_SHAPE  = $10
 SHARED CONST NO_DRAW    = $20
 
@@ -89,6 +94,11 @@ SUB SprGeomUpdateSprite(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHAR
 
     CALL SprClearFrame(SprFrame(SprNr))
     CALL SprGeomDraw(SprFrame(SprNr), GeometryAddr, Angle)
+
+    SprBoundingBoxLeft(SprNr) = SHR(BoundingBoxLeft, 1)
+    SprBoundingBoxRight(SprNr) = SHR(BoundingBoxRight, 1)
+    SprBoundingBoxTop(SprNr) = BoundingBoxTop
+    SprBoundingBoxBottom(SprNr) = BoundingBoxBottom
 
     CurAngle(SprNr) = Angle AND %11111000
     CurGeom(SprNr) = GeometryAddr
@@ -294,6 +304,11 @@ SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED ST
     DIM Index AS BYTE
     DIM Draw AS BYTE
 
+    BoundingBoxLeft = 23
+    BoundingBoxRight = 0
+    BoundingBoxTop = 20
+    BoundingBoxBottom = 0
+
     Draw = $00
     DO UNTIL 0
         Index = PEEK(GeometryAddr)
@@ -311,6 +326,29 @@ SUB SprGeomDraw(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED ST
         Index = Index + Angle
         sprite_line_x2 = RotX(Index)
         sprite_line_y2 = RotY(Index)
+
+        ASM
+bb_left:
+            lda {sprite_line_x2}
+            cmp {BoundingBoxLeft}
+            bcs bb_right                ;if x2 >= left then bb_right
+            sta {BoundingBoxLeft}
+bb_right:
+            cmp {BoundingBoxRight}
+            bcc bb_top                  ;if x2 < right then bb_top
+            sta {BoundingBoxRight}
+
+bb_top:
+            lda {sprite_line_y2}
+            cmp {BoundingBoxTop}
+            bcs bb_bottom               ;if y2 >= top then bb_bottom
+            sta {BoundingBoxTop}
+bb_bottom:
+            cmp {BoundingBoxBottom}
+            bcc bb_end                  ;if y2 < bottom then bb_end
+            sta {BoundingBoxBottom}
+bb_end:
+        END ASM
 
         IF Draw THEN CALL _DrawLine()
         Draw = $ff

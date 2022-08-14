@@ -1,6 +1,4 @@
-'INCLUDE "lib_types.bas"
 'INCLUDE "lib_memory.bas"
-'INCLUDE "lib_spr.bas"
 
 DIM IrqHandler AS WORD SHARED
 
@@ -55,8 +53,7 @@ SUB Reset() SHARED STATIC
 END SUB
 
 ASM
-IRQ1LINE        = $fc               ;This is the place on screen where the sorting IRQ happens
-    sta 1024
+IRQ1LINE        = $fc               ;This is the place on screen where the IRQ happens
     lda #<irq_handler_spr_return
     sta {irq_spr_addr}
     sta {irq_spr_return_addr}

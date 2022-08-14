@@ -7,42 +7,49 @@ SHARED CONST NOISE = 128
 SHARED CONST PULSE = 64
 SHARED CONST SAWTOOTH = 32
 SHARED CONST TRIANGLE = 16
-SHARED CONST NO_BOUNCE = $00
-SHARED CONST INFINITE = $ff
 
-DIM SfxRequest AS Word
-    SfxRequest = 0
+DIM sfx_request(3) AS BYTE
+DIM sfx_request_hi(3) AS BYTE
+DIM sfx_request_lo(3) AS BYTE
+    FOR ZP_B0 = 0 TO 2
+        sfx_request(ZP_B0) = FALSE
+        sfx_request_hi(ZP_B0) = 0
+        sfx_request_lo(ZP_B0) = 0
+    NEXT
 
 DIM ptr AS WORD FAST
 
 TYPE SFX
-    Priority AS BYTE
-    Time AS BYTE
-    WaveForm AS BYTE
+    Duration AS BYTE
+    Waveform AS BYTE
     AttackDecay AS BYTE
     SustainRelease AS BYTE
     Frequency AS WORD
-    Slide AS LONG
+    FrequencySlide AS LONG
     Bounce AS BYTE
     Pulse AS WORD
-
-    SUB Play() STATIC
-        SfxRequest = @THIS
-    END SUB
-
-    SUB Stop() STATIC
-        SfxRequest = $ffff
-    END SUB
 END TYPE
+
+SUB SfxPlay(VoiceNr AS BYTE, Effect AS WORD) STATIC
+    sfx_request_lo(VoiceNr) = PEEK(@Effect)
+    sfx_request_hi(VoiceNr) = PEEK(@Effect + 1)
+    sfx_request(VoiceNr) = TRUE
+END SUB
+
+SUB SfxStop(VoiceNr AS BYTE) SHARED STATIC
+    sfx_request_lo(VoiceNr) = $ff
+    sfx_request_hi(VoiceNr) = $ff
+    sfx_request(VoiceNr) = TRUE
+END SUB
 
 SUB InstallToIrq() SHARED STATIC
     ASM
-sid1 = $d400
+sid = $d400
 initsfx
         lda #$00
         ldx #$17
 initsfx_reset_loop
-        sta sid1,x
+        sta sid,x
         dex
         bpl initsfx_reset_loop
 
@@ -56,181 +63,212 @@ initsfx_reset_loop
 
         jmp initsfx_end
 
-sfx_priority    = 0
-sfx_time        = 1
-sfx_waveform    = 2
-sfx_atdc        = 3
-sfx_ssrl        = 4
-sfx_frequency   = 5
-sfx_slide       = 7
-sfx_bounce      = 10
-sfx_pulse       = 11
+sfx_duration            = 0
+sfx_waveform            = 1
+sfx_atdc                = 2
+sfx_ssrl                = 3
+sfx_frequency           = 4
+sfx_frequency_slide     = 6
+sfx_frequency_bounce    = 9
+sfx_pulse               = 10
 
 sfx_play
-        lda {SfxRequest}            ;Jump here from interrupt
-        bne sfx_new_or_stop
-        lda {SfxRequest}+1
-        bne sfx_new_or_stop
+        ldx #3
+sfx_loop
+        dex
+        bpl sfx_loop_1
+        rts
 
-        lda sid1_time
-        beq sfx_return
+sfx_loop_1
+        ldy sid_voice_offset,x
+
+        lda {sfx_request},x            ;Jump here from interrupt
+        beq sfx_loop_2
+        jmp sfx_new_or_stop
+
+sfx_loop_2
+        lda sid_duration,x
+        beq sfx_loop
         
         cmp #$ff
         beq sfx_continue
-        dec sid1_time        ;sound still playing
+        dec sid_duration,x        ;sound still playing
         bne sfx_continue
 
-sfx_end
+sfx_stop
         lda #$00
-        sta sid1_time
-        sta sid1+4        ;sound over
-sfx_return
-        rts
+        sta sid_duration,x
+        sta sid+4,y        ;sound over
+        jmp sfx_loop
 
 sfx_continue
-        lda sid1_slide0
-        bne sfx_slide_effect       ;slide on sound?
-        lda sid1_slide1
-        bne sfx_slide_effect       ;slide on sound?
-        rts
+        lda sid_frequency_slide0,x
+        bne sfx_frequency_slide_effect       ;frequency_slide on sound?
+        lda sid_frequency_slide1,x
+        bne sfx_frequency_slide_effect       ;frequency_slide on sound?
+        jmp sfx_loop
 
-sfx_slide_effect
+sfx_frequency_slide_effect
         clc
-        lda sid1_freqlo        ;get voice freq lo byte and add
-        adc sid1_slide0
-        sta sid1
-        sta sid1_freqlo
+        lda sid_frequency_lo,x        ;get voice freq lo byte and add
+        adc sid_frequency_slide0,x
+        sta sid,y
+        sta sid_frequency_lo,x
         
-        lda sid1_freqhi        ;get voice freq hi byte and add
-        adc sid1_slide1  
-        sta sid1+1
-        sta sid1_freqhi
+        lda sid_frequency_hi,x        ;get voice freq hi byte and add
+        adc sid_frequency_slide1,x  
+        sta sid+1,y
+        sta sid_frequency_hi,x
 
-        ldx sid1_bouncetime
-        bne sfx_bounceslide
-        rts
+        lda sid_bouncetime,x
+        bne sfx_frequency_slide_bounce
+        jmp sfx_loop
 
-sfx_bounceslide
-        dex
-        beq sfx_bounce_switch
-        stx sid1_bouncetime
-        rts
+sfx_frequency_slide_bounce
+        sec
+        sbc #1
+        beq sfx_frequency_slide_bounce_switch
+        sta sid_bouncetime,x
+        jmp sfx_loop
 
-sfx_bounce_switch
+sfx_frequency_slide_bounce_switch
         lda #$ff
-        eor sid1_slide0
-        sta sid1_slide0
+        eor sid_frequency_slide0,x
+        sta sid_frequency_slide0,x
         lda #$ff
-        eor sid1_slide1
-        sta sid1_slide1
+        eor sid_frequency_slide1,x
+        sta sid_frequency_slide1,x
         lda #$ff
-        eor sid1_slide2
-        sta sid1_slide2
+        eor sid_frequency_slide2,x
+        sta sid_frequency_slide2,x
 
-        inc sid1_slide0
-        bne sfx_bounce_switch_done
-        inc sid1_slide1
-        bne sfx_bounce_switch_done
-        inc sid1_slide2
+        inc sid_frequency_slide0,x
+        bne sfx_frequency_slide_bounce_switch_done
+        inc sid_frequency_slide1,x
+        bne sfx_frequency_slide_bounce_switch_done
+        inc sid_frequency_slide2,x
 
-sfx_bounce_switch_done
-        lda sid1_bouncemax
-        sta sid1_bouncetime  ;reset timer
-        rts
+sfx_frequency_slide_bounce_switch_done
+        lda sid_bouncemax,x
+        sta sid_bouncetime,x  ;reset timer
+        jmp sfx_loop
 
 sfx_new_or_stop
-        lda {SfxRequest}            ; init ptr to sfx struct
+        lda #0
+        sta {sfx_request},x
+
+        lda {sfx_request_lo},x            ; init ptr to sfx struct
         cmp #$ff
         bne sfx_new
-        lda {SfxRequest}+1
+        lda {sfx_request_hi},x
         cmp #$ff
-        beq sfx_end
+        bne sfx_new_or_stop_1
+        jmp sfx_stop
 
-        lda {SfxRequest}
+sfx_new_or_stop_1
+        lda {sfx_request_lo},x
 sfx_new
         sta {ptr}
-        lda {SfxRequest}+1
+        lda {sfx_request_hi},x
         sta {ptr}+1
 
-        ldy #sfx_priority
+        ldy #sfx_duration
         lda ({ptr}),y
-        sta sid1_priority
+        sta sid_duration,x
 
-        ldy #sfx_time
+        ldy #sfx_frequency_bounce
         lda ({ptr}),y
-        sta sid1_time
+        sta sid_bouncetime,x
+        sta sid_bouncemax,x
 
-        ldy #sfx_bounce
+        ldy #sfx_frequency_slide
         lda ({ptr}),y
-        sta sid1_bouncetime
-        sta sid1_bouncemax
-
-        ldy #sfx_slide
-        lda ({ptr}),y
-        sta sid1_slide0
+        sta sid_frequency_slide0,x
         iny
         lda ({ptr}),y
-        sta sid1_slide1
+        sta sid_frequency_slide1,x
         iny
         lda ({ptr}),y
-        sta sid1_slide2
+        sta sid_frequency_slide2,x
         
         ldy #sfx_frequency
         lda ({ptr}),y
-        sta sid1_freqlo
-        sta sid1
+        sta sid_frequency_lo,x
         iny
         lda ({ptr}),y
-        sta sid1_freqhi
-        sta sid1+1
+        sta sid_frequency_hi,x
 
         ldy #sfx_pulse
         lda ({ptr}),y
-        sta sid1+2
+        sta sid_pulse_lo,x
         iny
         lda ({ptr}),y
-        sta sid1+3
+        sta sid_pulse_hi,x
 
         ldy #sfx_atdc
         lda ({ptr}),y
-        sta sid1+5
+        sta sid_atdc,x
 
         ldy #sfx_ssrl
         lda ({ptr}),y
-        sta sid1+6
+        sta sid_ssrl,x
 
         ldy #sfx_waveform
         lda ({ptr}),y
         ora #1
-        sta sid1+4
+        sta sid_waveform,x
+
+        ldy sid_voice_offset,x
+
+        lda sid_frequency_lo,x
+        sta sid,y
+        lda sid_frequency_hi,x
+        sta sid+1,y
+        lda sid_pulse_lo,x
+        sta sid+2,y
+        lda sid_pulse_hi,x
+        sta sid+3,y
+        lda sid_atdc,x
+        sta sid+5,y
+        lda sid_ssrl,x
+        sta sid+6,y
+        lda sid_waveform,x
+        sta sid+4,y
 
         lda #$00
-        sta {SfxRequest}
-        sta {SfxRequest}+1
-        rts
+        sta {sfx_request_lo},x
+        sta {sfx_request_hi},x
+        jmp sfx_loop
 
-sid1_priority
-        .byte 0
+sid_duration
+        .byte 0,0,0 ;decrement
+sid_bouncetime
+        .byte 0,0,0 ;time until slide reversed
+sid_bouncemax
+        .byte 0,0,0 ;holds the reset value for bouncetime
+sid_frequency_slide0
+        .byte 0,0,0
+sid_frequency_slide1
+        .byte 0,0,0
+sid_frequency_slide2
+        .byte 0,0,0
+sid_frequency_lo
+        .byte 0,0,0
+sid_frequency_hi
+        .byte 0,0,0
+sid_pulse_lo
+        .byte 0,0,0
+sid_pulse_hi
+        .byte 0,0,0
+sid_atdc
+        .byte 0,0,0
+sid_ssrl
+        .byte 0,0,0
+sid_waveform
+        .byte 0,0,0
 
-sid1_time
-        .byte 0 ;decrement
-
-sid1_bouncetime
-        .byte 0 ;time until slide reversed
-sid1_bouncemax
-        .byte 0 ;holds the reset value for bouncetime
-
-sid1_slide0
-        .byte 0
-sid1_slide1
-        .byte 0
-sid1_slide2
-        .byte 0
-
-sid1_freqlo
-        .byte 0
-sid1_freqhi
-        .byte 0
+sid_voice_offset
+        .byte 0, 7, 14
 
 initsfx_end
     END ASM
@@ -238,13 +276,12 @@ initsfx_end
 END SUB
 
 DIM StartSfx AS SFX
-    StartSfx.Priority = 0
-    StartSfx.Time = 70
-    StartSfx.WaveForm = TRIANGLE
+    StartSfx.Duration = 70
+    StartSfx.Waveform = TRIANGLE
     StartSfx.AttackDecay = $71
     StartSfx.SustainRelease = $a9
     StartSfx.Frequency = $0764
-    StartSfx.Slide = 63
+    StartSfx.FrequencySlide = 63
     StartSfx.Bounce = 0
     StartSfx.Pulse = 0
 
@@ -252,11 +289,16 @@ CALL InstallToIrq()
 
 DO WHILE TRUE
     CALL Joy1.WaitClick()
-    PRINT "play"
-    CALL StartSfx.Play()
+    PRINT "play 0"
+    CALL SfxPlay(0, @StartSfx)
+
     CALL Joy1.WaitClick()
-    PRINT "stop"
-    CALL StartSfx.Stop()
+    PRINT "play 1"
+    CALL SfxPlay(1, @StartSfx)
+
+    CALL Joy1.WaitClick()
+    PRINT "play 2"
+    CALL SfxPlay(2, @StartSfx)
 LOOP
 
 END

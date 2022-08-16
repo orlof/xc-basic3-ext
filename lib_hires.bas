@@ -116,7 +116,7 @@ bitmap_plot_end:
     SUB Text(x AS BYTE, y AS BYTE, text AS STRING * 40, CharMemAddr AS WORD) STATIC OVERLOAD
         ZP_B0 = SHL(y, 3)
         ZP_W0 = (SHL(CWORD(hires_y_tbl_hi(ZP_B0)), 8) OR hires_y_tbl_lo(ZP_B0)) + SHL(CWORD(x), 3)
-        MEMSET ZP_W0, SHL(CWORD(LEN(text)), 3), 0
+        'MEMSET ZP_W0, SHL(CWORD(LEN(text)), 3), 0
         FOR ZP_B0 = 1 TO LEN(text)
             ZP_B1 = PEEK(@text + ZP_B0)
             ZP_B1 = PetsciiToScreenCode(ZP_B1)
@@ -129,11 +129,15 @@ bitmap_plot_end:
         rem disable interrupt and enable char rom
         ASM
             sei
+            lda 1
+            and #%11111011
+            sta 1
         END ASM
-        POKE 1, %11111010        
         CALL THIS.Text(x, y, text, $d800)
-        POKE 1, %11111110
         ASM
+            lda 1
+            ora #%00000100
+            sta 1
             cli
         END ASM
     END SUB

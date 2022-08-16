@@ -1,7 +1,6 @@
-INCLUDE "lib_memory.bas"
-INCLUDE "lib_types.bas"
-INCLUDE "lib_irq.bas"
-INCLUDE "lib_joy.bas"
+'INCLUDE "lib_memory.bas"
+'INCLUDE "lib_types.bas"
+'INCLUDE "lib_irq.bas"
 
 SHARED CONST NOISE = 128
 SHARED CONST PULSE = 64
@@ -30,7 +29,7 @@ TYPE SFX
     Pulse AS WORD
 END TYPE
 
-SUB SfxPlay(VoiceNr AS BYTE, Effect AS WORD) STATIC
+SUB SfxPlay(VoiceNr AS BYTE, Effect AS WORD) SHARED STATIC
     sfx_request_lo(VoiceNr) = PEEK(@Effect)
     sfx_request_hi(VoiceNr) = PEEK(@Effect + 1)
     sfx_request(VoiceNr) = TRUE
@@ -40,9 +39,29 @@ SUB SfxStop(VoiceNr AS BYTE) SHARED STATIC
     sfx_request_lo(VoiceNr) = $ff
     sfx_request_hi(VoiceNr) = $ff
     sfx_request(VoiceNr) = TRUE
+    ASM
+        ldx {VoiceNr}
+sfx_stop_loop
+        lda {sfx_request},x
+        bne sfx_stop_loop
+    END ASM
 END SUB
 
-SUB InstallToIrq() SHARED STATIC
+SUB SfxUninstall() SHARED STATIC
+    CALL InstallIrqRoutine(4, $ffff)
+    ASM
+sid = $d400
+sfx_reset
+        lda #$00
+        ldx #$18
+sfx_reset_loop
+        sta sid,x
+        dex
+        bpl sfx_reset_loop
+    END ASM
+END SUB
+
+SUB SfxInstall() SHARED STATIC
     ASM
 sid = $d400
 initsfx
@@ -94,6 +113,14 @@ sfx_loop_2
         beq sfx_continue
         dec sid_duration,x        ;sound still playing
         bne sfx_continue
+
+sfx_release
+        lda #$00
+        sta sid_duration,x
+        lda sid_waveform,x
+        and #254
+        sta sid+4,y        ;sound over
+        jmp sfx_loop
 
 sfx_stop
         lda #$00
@@ -274,52 +301,3 @@ initsfx_end
     END ASM
     CALL InstallIrqRoutine(4, ZP_W0)
 END SUB
-
-DIM StartSfx AS SFX
-    StartSfx.Duration = 70
-    StartSfx.Waveform = TRIANGLE
-    StartSfx.AttackDecay = $71
-    StartSfx.SustainRelease = $a9
-    StartSfx.Frequency = $0764
-    StartSfx.FrequencySlide = 63
-    StartSfx.Bounce = 0
-    StartSfx.Pulse = 0
-
-CALL InstallToIrq()
-
-DO WHILE TRUE
-    CALL Joy1.WaitClick()
-    PRINT "play 0"
-    CALL SfxPlay(0, @StartSfx)
-
-    CALL Joy1.WaitClick()
-    PRINT "play 1"
-    CALL SfxPlay(1, @StartSfx)
-
-    CALL Joy1.WaitClick()
-    PRINT "play 2"
-    CALL SfxPlay(2, @StartSfx)
-LOOP
-
-END
-
-ASM
-;-------------------------------------------
-;SFX DEFINITIONS
-;Priority for least to greatest
-; 0 Walking
-; 1 Sword
-; 2 Monster Explode
-; 3 Player Hurt
-; 4 Collect Key
-; 5 Collect Treasure
-; 6 Boss Attack
-; 7 Boss Hurt
-; 8 Boss Explode
-; 9 Chalice
-; 10 Game Start
-; 11 Player Dies
-;-------------------------------------------
-
-END ASM
-

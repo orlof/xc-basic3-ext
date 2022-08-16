@@ -92,7 +92,7 @@ IRQ1LINE        = $fc               ;This is the place on screen where the IRQ h
 ;-----------------------------------
 irq_handler:
 ;-----------------------------------
-    inc $d020
+    ;inc $d020
     ; BIT $D019
     ; BPL NotVICTryCIA
     ; IRQ_from_VIC:
@@ -128,7 +128,7 @@ irq_handler_spr:
     ;inc $d020
     jmp ({irq_spr_addr})
 irq_handler_spr_return:
-    dec $d020
+    ;dec $d020
     jmp $ea31
 ;-----------------------------------
 irq_end:

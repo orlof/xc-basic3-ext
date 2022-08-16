@@ -45,10 +45,18 @@ skip_add:
 END FUNCTION
 
 SUB time_pause(jiffys AS BYTE) SHARED STATIC
-    DIM end_time AS LONG
-    end_time = ti() + jiffys
-    DO WHILE ti() < end_time
-    LOOP
+    ASM
+        ldx {jiffys}
+time_pause_wait_positive
+        bit $d011
+        bmi time_pause_wait_positive
+time_pause_wait_negative
+        bit $d011
+        bpl time_pause_wait_negative
+
+        dex
+        bne time_pause_wait_positive
+    END ASM
 END SUB
 
 SUB time_reset(hour AS BYTE, minute AS BYTE, second AS BYTE, frac AS BYTE) SHARED STATIC

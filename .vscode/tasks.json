@@ -9,7 +9,6 @@
             "osx": {
                 "command": "./bin/macOS/xcbasic3",
                 "args": [
-                    "-p=False",
                     "-k",
                     "${file}",
                     "${fileDirname}/${fileBasenameNoExtension}.prg"

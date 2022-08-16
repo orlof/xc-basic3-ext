@@ -77,6 +77,7 @@ DECLARE SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
 REM ****************************************************************************
 REM Set TRUE/FALSE property for all prites. Works in both modes.
 REM ****************************************************************************
+DECLARE SUB SprEnableAll(Value AS BYTE) SHARED STATIC
 DECLARE SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
 DECLARE SUB SprDoubleYAll(Value AS BYTE) SHARED STATIC
 DECLARE SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
@@ -163,6 +164,12 @@ DIM tempvariable AS BYTE FAST
 DIM sprirqcounter AS BYTE FAST
 
 DIM sortorder(MAX_NUM_SPRITES) AS BYTE FAST
+
+SUB SprEnableAll(Value AS BYTE) SHARED STATIC
+    FOR ZP_B0 = 0 to spr_num_sprites - 1
+        CALL SprEnable(ZP_B0, Value)
+    NEXT
+END SUB
 
 SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
     spr_reg_dx = Value

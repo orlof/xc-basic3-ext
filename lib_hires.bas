@@ -1,10 +1,5 @@
 'INCLUDE "lib_memory.bas"
 
-DIM SHARED TRASH AS BYTE @$df00
-
-DIM hires_y_tbl_hi(256) AS BYTE SHARED
-DIM hires_y_tbl_lo(256) AS BYTE SHARED
-
 DIM hires_mask0(8) AS BYTE @_hires_mask0 SHARED
 _hires_mask0:
 DATA AS BYTE $7f, $bf, $df, $ef, $f7, $fb, $fd, $fe
@@ -34,15 +29,7 @@ TYPE ScreenHires
         THIS.bitmap_addr = THIS.vic_bank_addr + 8192 * BitmapPtr
         THIS.screen_mem_addr = THIS.vic_bank_addr + 1024 * ScreenMemPtr
 
-        FOR ZP_B0 AS BYTE = 0 TO 199
-            ZP_W0 = THIS.bitmap_addr + (ZP_B0 AND 7) + CWORD(320) * SHR(ZP_B0, 3)
-            hires_y_tbl_lo(ZP_B0) = PEEK(@ZP_W0)
-            hires_y_tbl_hi(ZP_B0) = PEEK(@ZP_W0+1)
-        NEXT ZP_B0
-        FOR ZP_B0 AS BYTE = 200 TO 255
-            hires_y_tbl_lo(ZP_B0) = CBYTE(@TRASH)
-            hires_y_tbl_hi(ZP_B0) = CBYTE(SHR(@TRASH, 8))
-        NEXT ZP_B0
+        CALL InitYTables(THIS.bitmap_addr)
     END SUB
 
     SUB Activate() STATIC
@@ -79,9 +66,9 @@ TYPE ScreenHires
     SUB Plot(x AS WORD, y AS BYTE, Color AS BYTE) STATIC
         ASM
             ldy {y}
-            lda {hires_y_tbl_lo},y
+            lda {bitmap_y_tbl_lo},y
             sta {ZP_W0}
-            lda {hires_y_tbl_hi},y
+            lda {bitmap_y_tbl_hi},y
             sta {ZP_W0}+1
 
             lda {x}+1
@@ -115,7 +102,7 @@ bitmap_plot_end:
 
     SUB Text(x AS BYTE, y AS BYTE, text AS STRING * 40, CharMemAddr AS WORD) STATIC OVERLOAD
         ZP_B0 = SHL(y, 3)
-        ZP_W0 = (SHL(CWORD(hires_y_tbl_hi(ZP_B0)), 8) OR hires_y_tbl_lo(ZP_B0)) + SHL(CWORD(x), 3)
+        ZP_W0 = (SHL(CWORD(bitmap_y_tbl_hi(ZP_B0)), 8) OR bitmap_y_tbl_lo(ZP_B0)) + SHL(CWORD(x), 3)
         'MEMSET ZP_W0, SHL(CWORD(LEN(text)), 3), 0
         FOR ZP_B0 = 1 TO LEN(text)
             ZP_B1 = PEEK(@text + ZP_B0)

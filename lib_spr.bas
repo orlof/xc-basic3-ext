@@ -581,7 +581,8 @@ irq1_notmorethan8:
 irq1_nospritesatall:
                 jmp $ea81
 
-irq1_beginsort: ;inc $d020                      ; debug
+irq1_beginsort:
+                ;inc $d020                      ; debug
                 ldx #$00
 irq1_sortloop:
                 ldy {sortorder}+1,x             ;Sorting code. Algorithm

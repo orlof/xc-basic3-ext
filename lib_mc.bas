@@ -1,10 +1,6 @@
 'INCLUDE "lib_memory.bas"
 'INCLUDE "lib_char.bas"
 
-'DIM y_tbl_hi(200) AS BYTE
-'DIM y_tbl_lo(200) AS BYTE
-DIM y_tbl(200) AS WORD
-
 DIM mc_mask0(4) AS BYTE @_mc_mask0
 _mc_mask0:
 DATA AS BYTE $3f,$cf,$f3,$fc
@@ -50,9 +46,7 @@ TYPE ScreenMultiColor
         THIS.bitmap_addr = THIS.vic_bank_addr + CWORD(8192) * CWORD(BitmapPtr)
         THIS.screen_mem_addr = THIS.vic_bank_addr + CWORD(1024) * CWORD(ScreenMemPtr)
 
-        FOR ZP_B0 AS BYTE = 0 TO 199
-            y_tbl(ZP_B0) = THIS.bitmap_addr + (ZP_B0 AND 7) + CWORD(320) * SHR(ZP_B0, 3)
-        NEXT ZP_B0
+        CALL InitYTables(THIS.bitmap_addr)
     END SUB
 
     SUB Activate() STATIC
@@ -90,8 +84,13 @@ TYPE ScreenMultiColor
     END SUB
 
     SUB Plot(x AS WORD, y AS BYTE, Color AS BYTE) STATIC
-        ZP_W0 = y_tbl(y)
         ASM
+            ldy {y}
+            lda {bitmap_y_tbl_lo},y
+            sta {ZP_W0}
+            lda {bitmap_y_tbl_hi},y
+            sta {ZP_W0}+1
+
             lda {x}
             and #%11111100
             asl
@@ -141,7 +140,40 @@ mc_plot_end:
 
         ZP_B2 = color_pattern(1)
         ZP_B3 = color_pattern(2)
-        ZP_W0 = y_tbl(8 * Row) + 2 * CWORD((4 * Col) AND %11111100)
+
+        ASM
+            ;W0 = ytbl(8 * Row)
+            lda {Row}
+            asl
+            asl
+            asl
+            tay
+            lda {bitmap_y_tbl_lo},y
+            sta {ZP_W0}
+            lda {bitmap_y_tbl_hi},y
+            sta {ZP_W0}+1
+
+            lda {Col}
+            asl
+            asl
+            asl
+            sta {ZP_W1}
+            lda #0
+            bcc mc_text_1
+            lda #1
+            clc
+mc_text_1
+            sta {ZP_W1}+1
+
+            lda {ZP_W0}
+            adc {ZP_W1}
+            sta {ZP_W0}
+
+            lda {ZP_W0}+1
+            adc {ZP_W1}+1
+            sta {ZP_W0}+1
+            ;ZP_W0 = y_tbl(8 * Row) + 2 * CWORD((4 * Col) AND %11111100)
+        END ASM
 
         FOR ZP_B0 = 1 TO LEN(text)
             ZP_B1 = PEEK(@text + ZP_B0)
@@ -164,11 +196,15 @@ mc_plot_end:
         rem disable interrupt and enable char rom
         ASM
             sei
+            lda 1
+            and #%11111011
+            sta 1
         END ASM
-        POKE 1, %11111001        
         CALL THIS.Text(Col, Row, Text, Color, BgColor, $d000 + CWORD(2048) * CWORD(CharSet))
-        POKE 1, %11111110
         ASM
+            lda 1
+            ora #%00000100
+            sta 1
             cli
         END ASM
     END SUB

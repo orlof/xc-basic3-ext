@@ -47,11 +47,6 @@ TYPE ScreenText
         MEMCPY THIS.screen_mem_addr, THIS.buffer_addr, 1024
     END SUB
 
-    SUB Colors(BorderColor AS BYTE, ScreenColor AS BYTE) STATIC
-        THIS.BorderColor = BorderColor
-        THIS.ScreenColor = ScreenColor
-    END SUB
-
     SUB UseCharSet(CharSet AS TypeCharSet) STATIC
         ' Activate charmem from "addr" relative to VIC bank
         IF CharSet.vic_bank_ptr <> THIS.vic_bank_ptr THEN ERROR 100

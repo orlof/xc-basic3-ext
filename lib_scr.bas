@@ -78,7 +78,7 @@ TYPE ScreenText
     END SUB
 
     SUB Clear() STATIC
-        CALL THIS.Fill(32, 0)
+        CALL THIS.Fill(32, COLOR_LIGHTBLUE)
     END SUB
 
     SUB Import(ScrAddr AS WORD, ColorAddr AS WORD) STATIC

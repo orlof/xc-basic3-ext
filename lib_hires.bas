@@ -64,7 +64,9 @@ TYPE ScreenHires
     END SUB
 
     SUB Plot(x AS WORD, y AS BYTE, Color AS BYTE) STATIC
+        ZP_B0 = (THIS.vic_bank_ptr = 3)
         ASM
+            sta $400
             ldy {y}
             lda {bitmap_y_tbl_lo},y
             sta {ZP_W0}
@@ -72,10 +74,10 @@ TYPE ScreenHires
             sta {ZP_W0}+1
 
             lda {x}+1
-            beq msb0
+            beq hires_plot_msb0
             inc {ZP_W0}+1
 
-msb0:
+hires_plot_msb0
             lda {x}
             and #%11111000
             tay
@@ -84,19 +86,35 @@ msb0:
             and #%00000111
             tax
 
+            lda {ZP_B0}
+            beq hires_plot_memory_readable
+
+            sei
+            dec 1
+            dec 1
+
+hires_plot_memory_readable
             lda {Color}
-            beq unset
-set:
+            beq hires_plot_unset
+hires_plot_set
             lda {hires_mask1},x
             ora ({ZP_W0}),y
             sta ({ZP_W0}),y
-            jmp bitmap_plot_end
+            jmp hires_plot_end
 
-unset:
+hires_plot_unset
             lda {hires_mask0},x
             and ({ZP_W0}),y
             sta ({ZP_W0}),y
-bitmap_plot_end:
+
+hires_plot_end
+            lda {ZP_B0}
+            beq hires_plot_memory_restored
+
+            inc 1
+            inc 1
+            cli
+hires_plot_memory_restored
         END ASM
     END SUB
 
@@ -128,4 +146,12 @@ bitmap_plot_end:
             cli
         END ASM
     END SUB
+
+    SUB Text(x AS BYTE, y AS BYTE, Text AS STRING * 40, Color AS BYTE) STATIC OVERLOAD
+        CALL THIS.Text(x, y, text)
+        FOR ZP_B0 = x TO x + LEN(Text) - 1
+            POKE THIS.screen_mem_addr + 40 * y + ZP_B0, Color
+        NEXT
+    END SUB
+
 END TYPE

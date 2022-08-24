@@ -63,6 +63,28 @@ TYPE ScreenHires
         POKE THIS.screen_mem_addr + 40 * y + x, SHL(Color0, 4) OR Color1
     END SUB
 
+    SUB Area(x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE, Pattern AS BYTE) STATIC
+        ZP_W1 = THIS.bitmap_addr + SHL(CWORD(x0), 3) + 320 * CWORD(y0)
+        FOR ZP_W0 = ZP_W1 TO ZP_W1 + 320 * CWORD(y1 - y0) STEP 320
+            FOR ZP_W1 = ZP_W0 TO ZP_W0 + SHL(CWORD(x1 - x0), 3) + 7
+                IF Pattern < 2 THEN
+                    POKE ZP_W1, Pattern
+                ELSE
+                    POKE ZP_W1, PEEK(ZP_W1)
+                END IF
+            NEXT
+        NEXT
+    END SUB
+
+    SUB ColorArea(x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE, Color AS BYTE) STATIC
+        ZP_W1 = THIS.screen_mem_addr + 40 * CWORD(y0) + x0
+        FOR ZP_W0 = ZP_W1 TO ZP_W1 + 40 * CWORD(y1 - y0) STEP 40
+            FOR ZP_W1 = ZP_W0 TO ZP_W0 + x1 - x0
+                POKE ZP_W1, Color
+            NEXT
+        NEXT
+    END SUB
+
     SUB Plot(x AS WORD, y AS BYTE, Color AS BYTE) STATIC
         ZP_B0 = (THIS.vic_bank_ptr = 3)
         ASM
@@ -148,9 +170,9 @@ hires_plot_memory_restored
     END SUB
 
     SUB Text(x AS BYTE, y AS BYTE, Text AS STRING * 40, Color AS BYTE) STATIC OVERLOAD
-        CALL THIS.Text(x, y, text)
+        CALL THIS.Text(x, y, Text)
         FOR ZP_B0 = x TO x + LEN(Text) - 1
-            POKE THIS.screen_mem_addr + 40 * y + ZP_B0, Color
+            POKE THIS.screen_mem_addr + 40 * CWORD(y) + ZP_B0, Color
         NEXT
     END SUB
 

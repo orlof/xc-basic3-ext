@@ -7,10 +7,9 @@
             "label": "Build XC_BASIC file to .prg",
             "type": "shell",
             "osx": {
-                "command": "./bin/macOS/xcbasic3",
+                "command": "xcbasic3",
                 "args": [
                     "-k",
-                    "-p",
                     "${file}",
                     "${fileDirname}/${fileBasenameNoExtension}.prg"
                 ]

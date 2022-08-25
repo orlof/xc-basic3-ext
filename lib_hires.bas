@@ -140,6 +140,17 @@ hires_plot_memory_restored
         END ASM
     END SUB
 
+    SUB Rect(x0 AS WORD, y0 AS BYTE, x1 AS WORD, y1 AS BYTE, Color AS BYTE) STATIC
+        FOR ZP_W1 = x0 TO x1
+            CALL THIS.Plot(ZP_W1, y0, Color)
+            CALL THIS.Plot(ZP_W1, y1, Color)
+        NEXT
+        FOR ZP_B1 = y0 TO y1
+            CALL THIS.Plot(x0, ZP_B1, Color)
+            CALL THIS.Plot(x1, ZP_B1, Color)
+        NEXT
+    END SUB
+
     SUB Text(x AS BYTE, y AS BYTE, text AS STRING * 40, CharMemAddr AS WORD) STATIC OVERLOAD
         ZP_B0 = SHL(y, 3)
         ZP_W0 = (SHL(CWORD(bitmap_y_tbl_hi(ZP_B0)), 8) OR bitmap_y_tbl_lo(ZP_B0)) + SHL(CWORD(x), 3)

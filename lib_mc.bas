@@ -30,8 +30,8 @@ TYPE ScreenMultiColor
 
     vic_bank_ptr AS BYTE
     vic_bank_addr AS WORD
-    screen_mem_ptr AS BYTE
-    screen_mem_addr AS WORD
+    scr_mem_ptr AS BYTE
+    scr_mem_addr AS WORD
     bitmap_ptr AS BYTE
     bitmap_addr AS WORD
 
@@ -40,11 +40,11 @@ TYPE ScreenMultiColor
     SUB Init(VicBankPtr AS BYTE, BitmapPtr AS BYTE, ScreenMemPtr AS BYTE) STATIC
         THIS.vic_bank_ptr = VicBankPtr
         THIS.bitmap_ptr = BitmapPtr
-        THIS.screen_mem_ptr = ScreenMemPtr
+        THIS.scr_mem_ptr = ScreenMemPtr
 
         THIS.vic_bank_addr = CWORD(16384) * CWORD(VicBankPtr)
         THIS.bitmap_addr = THIS.vic_bank_addr + CWORD(8192) * CWORD(BitmapPtr)
-        THIS.screen_mem_addr = THIS.vic_bank_addr + CWORD(1024) * CWORD(ScreenMemPtr)
+        THIS.scr_mem_addr = THIS.vic_bank_addr + CWORD(1024) * CWORD(ScreenMemPtr)
 
         CALL InitYTables(THIS.bitmap_addr)
     END SUB
@@ -54,7 +54,7 @@ TYPE ScreenMultiColor
         POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
 
         REM -- BITMAP 0 to 1, SCRMEM 0 to 15
-        POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR SHL(THIS.bitmap_ptr, 3)
+        POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.bitmap_ptr, 3)
 
         REM -- Bitmap mode on
         POKE $d011, (PEEK($d011) AND %01111111) OR %00100000
@@ -68,22 +68,22 @@ TYPE ScreenMultiColor
 
     SUB Clear(Color1 AS BYTE, Color2 AS BYTE, Color3 AS BYTE) STATIC
         MEMSET THIS.bitmap_addr, 8000, 0
-        MEMSET THIS.screen_mem_addr, 1000, SHL(Color1, 4) OR Color2
+        MEMSET THIS.scr_mem_addr, 1000, SHL(Color1, 4) OR Color2
         MEMSET $d800, 1000, Color3
     END SUB
 
     SUB Import(BitmapAddr AS WORD, ScreenMemAddr AS WORD, ColorMemAddr AS WORD) STATIC
         MEMCPY BitMapAddr, THIS.bitmap_addr, 8000
-        MEMCPY ScreenMemAddr, THIS.screen_mem_addr, 1000
+        MEMCPY ScreenMemAddr, THIS.scr_mem_addr, 1000
         MEMCPY ColorMemAddr, $d800, 1000
     END SUB
 
-    SUB Color(x AS BYTE, y AS BYTE, Color1 AS BYTE, Color2 AS BYTE, Color3 AS BYTE) STATIC
-        POKE THIS.screen_mem_addr + 40 * y + x, SHL(Color1, 4) OR Color2
+    SUB ColorBlock(x AS BYTE, y AS BYTE, Color1 AS BYTE, Color2 AS BYTE, Color3 AS BYTE) STATIC
+        POKE THIS.scr_mem_addr + 40 * y + x, SHL(Color1, 4) OR Color2
         POKE $d800 + 40 * y + x, Color3
     END SUB
 
-    SUB Plot(x AS WORD, y AS BYTE, Color AS BYTE) STATIC
+    SUB Plot(x AS WORD, y AS BYTE, Ink AS BYTE) STATIC
         ASM
             ldy {y}
             lda {bitmap_y_tbl_lo},y
@@ -102,7 +102,7 @@ msb0:
             and #%00000011
             tax
 
-            lda {Color}
+            lda {Ink}
             beq color0
             cmp #3
             beq color3
@@ -131,9 +131,9 @@ mc_plot_end:
         END ASM
     END SUB
 
-    SUB Text(Col AS BYTE, Row AS BYTE, text AS STRING * 40, Color AS BYTE, BgColor AS BYTE, CharMemAddr AS WORD) STATIC OVERLOAD
-        ZP_B0 = SHL(Color, 4) OR BgColor
-        ZP_W0 = THIS.screen_mem_addr + 40 * CWORD(Row) + Col
+    SUB Text(Col AS BYTE, Row AS BYTE, text AS STRING * 40, InkColor AS BYTE, BgColor AS BYTE, CharMemAddr AS WORD) STATIC OVERLOAD
+        ZP_B0 = SHL(InkColor, 4) OR BgColor
+        ZP_W0 = THIS.scr_mem_addr + 40 * CWORD(Row) + Col
         FOR ZP_W0 = ZP_W0 TO ZP_W0 + 2 * LEN(text) - 1
             POKE ZP_W0, ZP_B0
         NEXT ZP_W0
@@ -192,7 +192,7 @@ mc_text_1
         NEXT ZP_B0
     END SUB
 
-    SUB Text(Col AS BYTE, Row AS BYTE, Text AS STRING * 40, Color AS BYTE, BgColor AS BYTE, CharSet AS BYTE) STATIC OVERLOAD
+    SUB Text(Col AS BYTE, Row AS BYTE, Text AS STRING * 40, InkColor AS BYTE, BgColor AS BYTE, CharSetPtr AS BYTE) STATIC OVERLOAD
         rem disable interrupt and enable char rom
         ASM
             sei
@@ -200,7 +200,7 @@ mc_text_1
             and #%11111011
             sta 1
         END ASM
-        CALL THIS.Text(Col, Row, Text, Color, BgColor, $d000 + CWORD(2048) * CWORD(CharSet))
+        CALL THIS.Text(Col, Row, Text, InkColor, BgColor, $d000 + CWORD(2048) * CWORD(CharSetPtr))
         ASM
             lda 1
             ora #%00000100
@@ -209,12 +209,12 @@ mc_text_1
         END ASM
     END SUB
 
-    SUB Centre(Row AS BYTE, Text AS STRING * 40, Color AS BYTE, BgColor AS BYTE, CharMemAddr AS WORD) STATIC OVERLOAD
-        CALL THIS.Text(20 - LEN(text), Row, Text, Color, BgColor, CharMemAddr)
+    SUB Centre(Row AS BYTE, Text AS STRING * 40, InkColor AS BYTE, BgColor AS BYTE, CharMemAddr AS WORD) STATIC OVERLOAD
+        CALL THIS.Text(20 - LEN(text), Row, Text, InkColor, BgColor, CharMemAddr)
     END SUB
 
-    SUB Centre(Row AS BYTE, Text AS STRING * 40, Color AS BYTE, BgColor AS BYTE, CharSet AS BYTE) STATIC OVERLOAD
-        CALL THIS.Text(20 - LEN(text), Row, Text, Color, BgColor, CharSet)
+    SUB Centre(Row AS BYTE, Text AS STRING * 40, InkColor AS BYTE, BgColor AS BYTE, CharSetPtr AS BYTE) STATIC OVERLOAD
+        CALL THIS.Text(20 - LEN(text), Row, Text, InkColor, BgColor, CharSetPtr)
     END SUB
 
 END TYPE

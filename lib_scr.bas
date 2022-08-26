@@ -10,8 +10,8 @@ TYPE ScreenText
 
     vic_bank_ptr AS BYTE
     vic_bank_addr AS WORD
-    screen_mem_ptr AS BYTE
-    screen_mem_addr AS WORD
+    scr_mem_ptr AS BYTE
+    scr_mem_addr AS WORD
 
     buffer_ptr AS BYTE
     buffer_addr AS WORD 
@@ -22,8 +22,8 @@ TYPE ScreenText
     SUB Init(VicBankPtr AS BYTE, ScreenMemPtr AS BYTE, CharMemPtr AS BYTE) STATIC OVERLOAD
         THIS.vic_bank_ptr = VicBankPtr
         THIS.vic_bank_addr = 16384 * CWORD(VicBankPtr)
-        THIS.screen_mem_ptr = ScreenMemPtr
-        THIS.screen_mem_addr = THIS.vic_bank_addr + 1024 * CWORD(ScreenMemPtr)
+        THIS.scr_mem_ptr = ScreenMemPtr
+        THIS.scr_mem_addr = THIS.vic_bank_addr + 1024 * CWORD(ScreenMemPtr)
         THIS.char_mem_ptr = CharMemPtr
         THIS.char_mem_addr = 2048 * CWORD(CharMemPtr)
         THIS.BorderColor = COLOR_LIGHTBLUE
@@ -40,18 +40,18 @@ TYPE ScreenText
     END SUB
 
     SUB Swap() STATIC
-        SWAP THIS.screen_mem_ptr, THIS.buffer_ptr
-        SWAP THIS.screen_mem_addr, THIS.buffer_addr
+        SWAP THIS.scr_mem_ptr, THIS.buffer_ptr
+        SWAP THIS.scr_mem_addr, THIS.buffer_addr
         CALL WaitRasterLine256()
-        POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR %0101
-        MEMCPY THIS.screen_mem_addr, THIS.buffer_addr, 1024
+        POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR %0101
+        MEMCPY THIS.scr_mem_addr, THIS.buffer_addr, 1024
     END SUB
 
-    SUB UseCharSet(CharSet AS TypeCharSet) STATIC
+    SUB UseCharSet(CharacterSet AS TypeCharSet) STATIC
         ' Activate charmem from "addr" relative to VIC bank
-        IF CharSet.vic_bank_ptr <> THIS.vic_bank_ptr THEN ERROR 100
-        THIS.char_mem_ptr = CharSet.char_mem_ptr
-        THIS.char_mem_addr = CharSet.char_mem_addr
+        IF CharacterSet.vic_bank_ptr <> THIS.vic_bank_ptr THEN ERROR 100
+        THIS.char_mem_ptr = CharacterSet.char_mem_ptr
+        THIS.char_mem_addr = CharacterSet.char_mem_addr
     END SUB
 
     SUB Activate() STATIC
@@ -62,8 +62,8 @@ TYPE ScreenText
         POKE $d011, %00011011
 
         REM -- Screen address
-        ' SCREEN THIS.screen_mem_ptr
-        POKE $d018, SHL(THIS.screen_mem_ptr, 4) OR SHL(THIS.char_mem_ptr, 1)
+        ' SCREEN THIS.scr_mem_ptr
+        POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.char_mem_ptr, 1)
 
         REM -- Multicolor mode
         POKE $d016, %11001000
@@ -72,9 +72,9 @@ TYPE ScreenText
         RegScreenColor = THIS.ScreenColor
     END SUB
 
-    SUB Fill(Char AS BYTE, Color AS BYTE) STATIC
-        MEMSET THIS.screen_mem_addr, 1000, Char
-        MEMSET $D800, 1000, Color
+    SUB Fill(Char AS BYTE, InkColor AS BYTE) STATIC
+        MEMSET THIS.scr_mem_addr, 1000, Char
+        MEMSET $D800, 1000, InkColor
     END SUB
 
     SUB Clear() STATIC
@@ -82,22 +82,22 @@ TYPE ScreenText
     END SUB
 
     SUB Import(ScrAddr AS WORD, ColorAddr AS WORD) STATIC
-        MEMCPY ScrAddr, THIS.screen_mem_addr, 1000
+        MEMCPY ScrAddr, THIS.scr_mem_addr, 1000
         MEMCPY ColorAddr, $d800, 1000
     END SUB
 
-    SUB At(x AS BYTE, y AS BYTE, Char AS BYTE, Color AS BYTE) STATIC OVERLOAD
+    SUB CharacterAt(x AS BYTE, y AS BYTE, Char AS BYTE, InkColor AS BYTE) STATIC OVERLOAD
         ZP_W0 = 40 * CWORD(y) + x
-        POKE THIS.screen_mem_addr + ZP_W0, Char
-        POKE $d800 + ZP_W0, Color
+        POKE THIS.scr_mem_addr + ZP_W0, Char
+        POKE $d800 + ZP_W0, InkColor
     END SUB
 
-    SUB At(x AS BYTE, y AS BYTE, Char AS BYTE) STATIC OVERLOAD
-        POKE THIS.screen_mem_addr + 40 * CWORD(y) + x, Char
+    SUB CharacterAt(x AS BYTE, y AS BYTE, Char AS BYTE) STATIC OVERLOAD
+        POKE THIS.scr_mem_addr + 40 * CWORD(y) + x, Char
     END SUB
 
-    FUNCTION At AS BYTE(x AS BYTE, y AS BYTE) STATIC OVERLOAD
-        RETURN PEEK(THIS.screen_mem_addr + 40 * CWORD(y) + x)
+    FUNCTION CharacterAt AS BYTE(x AS BYTE, y AS BYTE) STATIC OVERLOAD
+        RETURN PEEK(THIS.scr_mem_addr + 40 * CWORD(y) + x)
     END FUNCTION
 
     FUNCTION ColorAt AS BYTE(x AS BYTE, y AS BYTE) STATIC OVERLOAD

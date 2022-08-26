@@ -56,13 +56,13 @@ TYPE TypeCharSet
         CALL THIS.ImportChar(PetsciiToScreenCode(Petscii), SrcAddr)
     END SUB
 
-    SUB CopyCharROM(CharSet AS BYTE) STATIC
+    SUB CopyCharROM(CharSetPtr AS BYTE) STATIC
         ASM
             sei         ; disable interrupts while we copy
             lda #$31    ; make the CPU see the Character Generator ROM...
             sta $01     ; ...at $D000 by storing %00110011 into location $01
         END ASM
-        MEMCPY $D000 + 2048 * CWORD(CharSet), THIS.char_mem_addr, 2048
+        MEMCPY $D000 + 2048 * CWORD(CharSetPtr), THIS.char_mem_addr, 2048
         ASM
             lda #$36    ; switch in I/O mapped registers again...
             sta $01     ; ... with %00110111 so CPU can see them

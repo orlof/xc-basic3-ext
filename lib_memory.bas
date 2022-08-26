@@ -4,6 +4,9 @@ REM ****************************************************************************
 DIM SHARED RegBorderColor AS BYTE @53280
 DIM SHARED RegScreenColor AS BYTE @53281
 
+DIM SHARED ZP_L0 AS LONG FAST
+DIM SHARED ZP_I0 AS INT FAST
+
 DIM SHARED ZP_W0 AS WORD FAST
 DIM SHARED ZP_W1 AS WORD FAST
 

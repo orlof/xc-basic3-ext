@@ -582,7 +582,7 @@ irq1_nospritesatall:
                 jmp $ea81
 
 irq1_beginsort:
-                inc $d020                      ; debug
+                ;inc $d020                      ; debug
                 ldx #$00
 irq1_sortloop:
                 ldy {sortorder}+1,x             ;Sorting code. Algorithm
@@ -625,7 +625,7 @@ irq1_sortloop3: ldy {sortorder},x               ;Final loop:
                 inx
                 cpx {sortedsprites}
                 bcc irq1_sortloop3
-                dec $d020                       ; debug
+                ;dec $d020                       ; debug
                 jmp irq1_nonewsprites
 
 ;Raster interrupt 2. This is where sprite displaying happens

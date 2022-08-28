@@ -33,17 +33,49 @@ TYPE ScreenHires
     END SUB
 
     SUB Activate() STATIC
-        REM -- Vic Bank 0 to 3
-        POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
+        CALL WaitRasterLine256()
 
-        REM -- BITMAP 0 to 1, SCRMEM 0 to 15
-        POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.bitmap_ptr, 3)
+        ZP_B0 = THIS.vic_bank_ptr
+        ZP_B1 = THIS.scr_mem_ptr
+        ZP_B2 = THIS.bitmap_ptr
+        
+        ASM
+            ; REM -- Vic Bank 0 to 3
+            ; POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
+            lda $dd00
+            and #%11111100
+            ora {ZP_B0}
+            eor #%00000011
+            sta $dd00
 
-        REM -- Bitmap mode on
-        POKE $d011, (PEEK($d011) AND %01111111) OR %00100000
+            ; REM -- BITMAP 0 to 1, SCRMEM 0 to 15
+            ; POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.bitmap_ptr, 3)
+            lda {ZP_B1}
+            asl
+            asl
+            asl
+            asl
+            sta {ZP_B1}
+            lda {ZP_B2}
+            asl
+            asl
+            asl
+            ora {ZP_B1}
+            sta $d018
 
-        REM -- Multicolor mode
-        POKE $d016, PEEK($d016) AND %11101111
+            ; REM -- Bitmap mode on
+            ; POKE $d011, (PEEK($d011) AND %01111111) OR %00100000
+            lda $d011
+            and #%01111111
+            ora #%00100000
+            sta $d011
+
+            ; REM -- Multicolor mode off
+            ; POKE $d016, PEEK($d016) AND %11101111
+            lda $d016
+            and #%11101111
+            sta $d016
+        END ASM
 
         RegBorderColor = THIS.BorderColor
         RegScreenColor = THIS.ScreenColor
@@ -51,7 +83,16 @@ TYPE ScreenHires
 
     SUB Clear(Color0 AS BYTE, Color1 AS BYTE) STATIC
         MEMSET THIS.bitmap_addr, 8000, 0
-        MEMSET THIS.scr_mem_addr, 1000, SHL(Color1, 4) OR Color0
+        ASM
+            lda {Color1}
+            asl
+            asl
+            asl
+            asl
+            ora {Color0}
+            sta {Color0}
+        END ASM
+        MEMSET THIS.scr_mem_addr, 1000, Color0
     END SUB
 
     SUB Import(BitmapAddr AS WORD, ScreenAddr AS WORD) STATIC
@@ -64,7 +105,45 @@ TYPE ScreenHires
     END SUB
 
     SUB Area(x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE, Pattern AS BYTE) STATIC
-        ZP_W1 = THIS.bitmap_addr + SHL(CWORD(x0), 3) + 320 * CWORD(y0)
+        ASM
+            ; ZP_W1 = THIS.bitmap_addr + SHL(CWORD(x0), 3) + 320 * CWORD(y0)
+
+            ; POKE @ZP_W1, bitmap_y_tbl_lo(y0)
+            ; POKE @ZP_W1+1, bitmap_y_tbl_hi(y0)
+            lda {y0}
+            asl
+            asl
+            asl
+            tay
+            lda {bitmap_y_tbl_lo},y
+            sta {ZP_W1}
+            lda {bitmap_y_tbl_hi},y
+            sta {ZP_W1}+1
+
+            ; ZP_W1 = ZP_W1 + SHL(CWORD(x0), 3)
+            lda {x0}
+            asl
+            asl
+            asl
+            tax
+            lda #0
+            rol
+            tay
+            
+            clc
+            txa
+            adc {ZP_W1}
+            sta {ZP_W1}
+            tya
+            adc {ZP_W1}+1
+            sta {ZP_W1}+1
+        END ASM
+        'POKE @ZP_W1, bitmap_y_tbl_lo(y0)
+        'POKE @ZP_W1+1, bitmap_y_tbl_hi(y0)
+        'ZP_W1 = ZP_W1 + SHL(CWORD(x0), 3)
+
+        'ZP_W1 = THIS.bitmap_addr + SHL(CWORD(x0), 3) + 320 * CWORD(y0)
+
         FOR ZP_W0 = ZP_W1 TO ZP_W1 + 320 * CWORD(y1 - y0) STEP 320
             FOR ZP_W1 = ZP_W0 TO ZP_W0 + SHL(CWORD(x1 - x0), 3) + 7
                 IF Pattern < 2 THEN
@@ -88,7 +167,6 @@ TYPE ScreenHires
     SUB Plot(x AS WORD, y AS BYTE, Mode AS BYTE) STATIC
         ZP_B0 = (THIS.vic_bank_ptr = 3)
         ASM
-            sta $400
             ldy {y}
             lda {bitmap_y_tbl_lo},y
             sta {ZP_W0}

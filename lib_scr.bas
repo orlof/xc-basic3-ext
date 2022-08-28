@@ -55,18 +55,44 @@ TYPE ScreenText
     END SUB
 
     SUB Activate() STATIC
-        REM Vic Bank
-        POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
-        
-        REM -- Bitmap mode off
-        POKE $d011, %00011011
+        CALL WaitRasterLine256()
 
-        REM -- Screen address
-        ' SCREEN THIS.scr_mem_ptr
-        POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.char_mem_ptr, 1)
+        ZP_B0 = THIS.vic_bank_ptr
+        ZP_B1 = THIS.scr_mem_ptr
+        ZP_B2 = THIS.char_mem_ptr
 
-        REM -- Multicolor mode
-        POKE $d016, %11001000
+        ASM
+            ; REM Vic Bank
+            ; POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
+            lda $dd00
+            and #%11111100
+            ora {ZP_B0}
+            eor #%00000011
+            sta $dd00
+
+            ; REM -- Bitmap mode off
+            ; POKE $d011, %00011011
+            lda #%00011011
+            sta $d011
+
+            ; REM -- Screen address
+            ; POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.char_mem_ptr, 1)
+            lda {ZP_B1}
+            asl
+            asl
+            asl
+            asl
+            sta {ZP_B1}
+            lda {ZP_B2}
+            asl
+            ora {ZP_B1}
+            sta $d018
+
+            ; REM -- Multicolor mode
+            ; POKE $d016, %11001000
+            lda #%11001000
+            sta $d016
+        END ASM
 
         RegBorderColor = THIS.BorderColor
         RegScreenColor = THIS.ScreenColor

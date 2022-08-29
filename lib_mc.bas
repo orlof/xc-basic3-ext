@@ -50,6 +50,8 @@ TYPE ScreenMultiColor
     END SUB
 
     SUB Activate() STATIC
+        CALL WaitRasterLine256()
+
         REM -- Vic Bank 0 to 3
         POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
 

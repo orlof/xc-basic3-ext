@@ -74,6 +74,67 @@ TYPE ScreenMultiColor
         MEMSET $d800, 1000, Color3
     END SUB
 
+    SUB ImportRle(SrcAddr AS WORD) STATIC
+        ZP_W0 = SrcAddr
+        ZP_W1 = THIS.bitmap_addr
+        ASM
+            jsr rle_next
+        END ASM
+        ZP_W1 = THIS.scr_mem_addr
+        ASM
+            jsr rle_next
+        END ASM
+        ZP_W1 = $d800
+        ASM
+            jsr rle_next
+        END ASM
+        EXIT SUB
+
+        ASM
+rle_next
+            ldy #0          ; ZP_B0 = runlength
+            lda ({ZP_W0}),y
+            beq rle_end
+            sta {ZP_B0}
+
+            iny             ; a = byte
+            lda ({ZP_W0}),y
+
+            ldy {ZP_B0}
+rle_runlength_loop
+            dey
+            sta ({ZP_W1}),y
+            bne rle_runlength_loop
+
+            clc
+            lda {ZP_W0}
+            adc #2
+            sta {ZP_W0}
+            lda {ZP_W0}+1
+            adc #0
+            sta {ZP_W0}+1
+
+            clc
+            lda {ZP_W1}
+            adc {ZP_B0}
+            sta {ZP_W1}
+            lda {ZP_W1}+1
+            adc #0
+            sta {ZP_W1}+1
+
+            jmp rle_next
+rle_end
+            clc
+            lda {ZP_W0}
+            adc #1
+            sta {ZP_W0}
+            lda {ZP_W0}+1
+            adc #0
+            sta {ZP_W0}+1
+            rts
+        END ASM
+    END SUB
+
     SUB Import(BitmapAddr AS WORD, ScreenMemAddr AS WORD, ColorMemAddr AS WORD) STATIC
         MEMCPY BitMapAddr, THIS.bitmap_addr, 8000
         MEMCPY ScreenMemAddr, THIS.scr_mem_addr, 1000

@@ -34,19 +34,6 @@ TYPE ScreenText
         CALL THIS.Init(0, 1, 2)
     END SUB
 
-    SUB DoubleBuffer(ScreenMemPtr AS BYTE) STATIC
-        THIS.buffer_ptr = ScreenMemPtr
-        THIS.buffer_addr = THIS.vic_bank_addr + 1024 * CWORD(ScreenMemPtr)
-    END SUB
-
-    SUB Swap() STATIC
-        SWAP THIS.scr_mem_ptr, THIS.buffer_ptr
-        SWAP THIS.scr_mem_addr, THIS.buffer_addr
-        CALL WaitRasterLine256()
-        POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR %0101
-        MEMCPY THIS.scr_mem_addr, THIS.buffer_addr, 1024
-    END SUB
-
     SUB UseCharSet(CharacterSet AS TypeCharSet) STATIC
         ' Activate charmem from "addr" relative to VIC bank
         IF CharacterSet.vic_bank_ptr <> THIS.vic_bank_ptr THEN ERROR 100

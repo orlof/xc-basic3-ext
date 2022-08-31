@@ -42,27 +42,88 @@ TYPE ScreenMultiColor
         THIS.bitmap_ptr = BitmapPtr
         THIS.scr_mem_ptr = ScreenMemPtr
 
-        THIS.vic_bank_addr = CWORD(16384) * CWORD(VicBankPtr)
-        THIS.bitmap_addr = THIS.vic_bank_addr + CWORD(8192) * CWORD(BitmapPtr)
-        THIS.scr_mem_addr = THIS.vic_bank_addr + CWORD(1024) * CWORD(ScreenMemPtr)
+        ASM
+            lda #0
+            sta {ZP_W0}
+            sta {ZP_W1}
+            sta {ZP_W2}
 
-        CALL InitYTables(THIS.bitmap_addr)
+            lda {VicBankPtr}        ;16384 * CWORD(VicBankPtr)
+            lsr
+            ror
+            ror
+            sta {ZP_W0}+1
+
+            lda {BitmapPtr}         ;vic_bank_addr + 8192 * BitmapPtr
+            lsr
+            ror
+            ror
+            ror
+
+            clc
+            adc {ZP_W0}+1
+            sta {ZP_W1}+1
+
+            lda {ScreenMemPtr}      ;vic_bank_addr + 1024 * ScreenMemPtr
+            asl
+            asl
+
+            clc
+            adc {ZP_W0}+1
+            sta {ZP_W2}+1
+        END ASM
+
+        THIS.vic_bank_addr = ZP_W0
+        THIS.bitmap_addr = ZP_W1
+        THIS.scr_mem_addr = ZP_W2
+
+        CALL InitYTables(ZP_W1)
     END SUB
 
     SUB Activate() STATIC
         CALL WaitRasterLine256()
 
-        REM -- Vic Bank 0 to 3
-        POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
+        ZP_B0 = THIS.vic_bank_ptr
+        ZP_B1 = THIS.scr_mem_ptr
+        ZP_B2 = THIS.bitmap_ptr
+        
+        ASM
+            ; REM -- Vic Bank 0 to 3
+            ; POKE $dd00, (PEEK($dd00) AND %11111100) OR (THIS.vic_bank_ptr XOR %11)
+            lda $dd00
+            and #%11111100
+            ora {ZP_B0}
+            eor #%00000011
+            sta $dd00
 
-        REM -- BITMAP 0 to 1, SCRMEM 0 to 15
-        POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.bitmap_ptr, 3)
+            ; REM -- BITMAP 0 to 1, SCRMEM 0 to 15
+            ; POKE $d018, SHL(THIS.scr_mem_ptr, 4) OR SHL(THIS.bitmap_ptr, 3)
+            lda {ZP_B1}
+            asl
+            asl
+            asl
+            asl
+            sta {ZP_B1}
+            lda {ZP_B2}
+            asl
+            asl
+            asl
+            ora {ZP_B1}
+            sta $d018
 
-        REM -- Bitmap mode on
-        POKE $d011, (PEEK($d011) AND %01111111) OR %00100000
+            ; REM -- Bitmap mode on
+            ; POKE $d011, (PEEK($d011) AND %01111111) OR %00100000
+            lda $d011
+            and #%01111111
+            ora #%00100000
+            sta $d011
 
-        REM -- Multicolor mode
-        POKE $d016, PEEK($d016) OR %00010000
+            ; REM -- Multicolor mode off
+            ; POKE $d016, PEEK($d016) AND %11101111
+            lda $d016
+            ora #%00010000
+            sta $d016
+        END ASM
 
         RegBorderColor = THIS.BorderColor
         RegScreenColor = THIS.ScreenColor
@@ -92,9 +153,45 @@ TYPE ScreenMultiColor
 
         ASM
 rle_next
+            sta $400
             ldy #0          ; ZP_B0 = runlength
             lda ({ZP_W0}),y
             beq rle_end
+            bpl rle_runlength
+rle_singles
+            eor #$ff
+            clc
+            adc #2
+            sta {ZP_B0}
+            tay
+            dey
+
+            sec
+            lda {ZP_W1}
+            sbc #1
+            sta {ZP_W1}
+            lda {ZP_W1}+1
+            sbc #0
+            sta {ZP_W1}+1
+
+rle_singles_loop
+            lda ({ZP_W0}),y
+            sta ({ZP_W1}),y
+
+            dey
+            bne rle_singles_loop
+
+            clc
+            lda {ZP_W0}
+            adc {ZP_B0}
+            sta {ZP_W0}
+            lda {ZP_W0}+1
+            adc #0
+            sta {ZP_W0}+1
+
+            jmp rle_advance_output
+
+rle_runlength
             sta {ZP_B0}
 
             iny             ; a = byte
@@ -114,6 +211,7 @@ rle_runlength_loop
             adc #0
             sta {ZP_W0}+1
 
+rle_advance_output
             clc
             lda {ZP_W1}
             adc {ZP_B0}

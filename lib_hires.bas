@@ -25,11 +25,42 @@ TYPE ScreenHires
         THIS.bitmap_ptr = BitmapPtr
         THIS.scr_mem_ptr = ScreenMemPtr
 
-        THIS.vic_bank_addr = 16384 * CWORD(VicBankPtr)
-        THIS.bitmap_addr = THIS.vic_bank_addr + 8192 * BitmapPtr
-        THIS.scr_mem_addr = THIS.vic_bank_addr + 1024 * ScreenMemPtr
+        ASM
+            lda #0
+            sta {ZP_W0}
+            sta {ZP_W1}
+            sta {ZP_W2}
 
-        CALL InitYTables(THIS.bitmap_addr)
+            lda {VicBankPtr}        ;16384 * CWORD(VicBankPtr)
+            lsr
+            ror
+            ror
+            sta {ZP_W0}+1
+
+            lda {BitmapPtr}         ;vic_bank_addr + 8192 * BitmapPtr
+            lsr
+            ror
+            ror
+            ror
+
+            clc
+            adc {ZP_W0}+1
+            sta {ZP_W1}+1
+
+            lda {ScreenMemPtr}      ;vic_bank_addr + 1024 * ScreenMemPtr
+            asl
+            asl
+
+            clc
+            adc {ZP_W0}+1
+            sta {ZP_W2}+1
+        END ASM
+
+        THIS.vic_bank_addr = ZP_W0
+        THIS.bitmap_addr = ZP_W1
+        THIS.scr_mem_addr = ZP_W2
+
+        CALL InitYTables(ZP_W1)
     END SUB
 
     SUB Activate() STATIC

@@ -15,11 +15,7 @@ DECLARE SUB time_pause(jiffys AS BYTE) SHARED STATIC
 DECLARE SUB time_reset(hour AS BYTE, minute AS BYTE, second AS BYTE, frac AS BYTE) SHARED STATIC OVERLOAD
 DECLARE FUNCTION time_tod AS TOD() SHARED STATIC
 
-DIM hour_to_pm(24) AS BYTE @HOUR_24_TO_PM
-
-HOUR_24_TO_PM:
-DATA AS BYTE $92, $01, $02, $03, $04, $05, $06, $07, $08, $09, $10, $11
-DATA AS BYTE $12, $81, $82, $83, $84, $85, $86, $87, $88, $89, $90, $91
+DIM hour_to_pm(24) AS BYTE @_HOUR_24_TO_PM
 
 FUNCTION bin_to_bcd AS BYTE(b AS BYTE) SHARED STATIC
     ASM
@@ -81,3 +77,10 @@ FUNCTION time_tod AS TOD() SHARED STATIC
     time_tod.second = 10 * SHR(ctime.second, 4) + (ctime.second AND $0f)
     time_tod.frac = ctime.frac AND $0f
 END FUNCTION
+
+GOTO THE_END
+_HOUR_24_TO_PM:
+DATA AS BYTE $92, $01, $02, $03, $04, $05, $06, $07, $08, $09, $10, $11
+DATA AS BYTE $12, $81, $82, $83, $84, $85, $86, $87, $88, $89, $90, $91
+
+THE_END:

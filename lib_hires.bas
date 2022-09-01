@@ -1,11 +1,7 @@
 'INCLUDE "lib_memory.bas"
 
 DIM hires_mask0(8) AS BYTE @_hires_mask0 SHARED
-_hires_mask0:
-DATA AS BYTE $7f, $bf, $df, $ef, $f7, $fb, $fd, $fe
 DIM hires_mask1(8) AS BYTE @_hires_mask1 SHARED
-_hires_mask1:
-DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01
 
 TYPE ScreenHires
     BorderColor AS BYTE
@@ -295,5 +291,13 @@ hires_plot_memory_restored
             POKE THIS.scr_mem_addr + 40 * CWORD(y) + ZP_B0, Colors
         NEXT
     END SUB
-
 END TYPE
+
+GOTO THE_END
+
+_hires_mask0:
+DATA AS BYTE $7f, $bf, $df, $ef, $f7, $fb, $fd, $fe
+_hires_mask1:
+DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01
+
+THE_END:

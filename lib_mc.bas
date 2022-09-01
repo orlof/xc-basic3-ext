@@ -2,27 +2,12 @@
 'INCLUDE "lib_char.bas"
 
 DIM mc_mask0(4) AS BYTE @_mc_mask0
-_mc_mask0:
-DATA AS BYTE $3f,$cf,$f3,$fc
 DIM mc_mask1(4) AS BYTE @_mc_mask1
-_mc_mask1:
-DATA AS BYTE $40,$10,$04,$01
 DIM mc_mask2(4) AS BYTE @_mc_mask2
-_mc_mask2:
-DATA AS BYTE $80,$20,$08,$02
 DIM mc_mask3(4) AS BYTE @_mc_mask3
-_mc_mask3:
-DATA AS BYTE $c0,$30,$0c,$03
 
 DIM nible_to_byte(16) AS BYTE @_nible_to_byte
-_nible_to_byte:
-DATA AS BYTE %00000000, %00000011, %00001100, %00001111
-DATA AS BYTE %00110000, %00110011, %00111100, %00111111
-DATA AS BYTE %11000000, %11000011, %11001100, %11001111
-DATA AS BYTE %11110000, %11110011, %11111100, %11111111
 DIM color_pattern(4) AS BYTE @_color_pattern
-_color_pattern:
-DATA AS BYTE %00000000, %01010101, %10101010, %11111111
 
 TYPE ScreenMultiColor
     BorderColor AS BYTE
@@ -281,3 +266,23 @@ mc_text_1
     END SUB
 
 END TYPE
+
+GOTO THE_END
+
+_mc_mask0:
+DATA AS BYTE $3f,$cf,$f3,$fc
+_mc_mask1:
+DATA AS BYTE $40,$10,$04,$01
+_mc_mask2:
+DATA AS BYTE $80,$20,$08,$02
+_mc_mask3:
+DATA AS BYTE $c0,$30,$0c,$03
+_nible_to_byte:
+DATA AS BYTE %00000000, %00000011, %00001100, %00001111
+DATA AS BYTE %00110000, %00110011, %00111100, %00111111
+DATA AS BYTE %11000000, %11000011, %11001100, %11001111
+DATA AS BYTE %11110000, %11110011, %11111100, %11111111
+_color_pattern:
+DATA AS BYTE %00000000, %01010101, %10101010, %11111111
+
+THE_END:

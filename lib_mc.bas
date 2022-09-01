@@ -118,7 +118,7 @@ TYPE ScreenMultiColor
             ora #%00100000
             sta $d011
 
-            ; REM -- Multicolor mode off
+            ; REM -- Multicolor mode on
             ; POKE $d016, PEEK($d016) AND %11101111
             lda $d016
             ora #%00010000
@@ -133,104 +133,6 @@ TYPE ScreenMultiColor
         MEMSET THIS.bitmap_addr, 8000, 0
         MEMSET THIS.scr_mem_addr, 1000, SHL(Color1, 4) OR Color2
         MEMSET $d800, 1000, Color3
-    END SUB
-
-    SUB ImportRle(SrcAddr AS WORD) STATIC
-        ZP_W0 = SrcAddr
-        ZP_W1 = THIS.bitmap_addr
-        ASM
-            jsr rle_next
-        END ASM
-        ZP_W1 = THIS.scr_mem_addr
-        ASM
-            jsr rle_next
-        END ASM
-        ZP_W1 = $d800
-        ASM
-            jsr rle_next
-        END ASM
-        EXIT SUB
-
-        ASM
-rle_next
-            sta $400
-            ldy #0          ; ZP_B0 = runlength
-            lda ({ZP_W0}),y
-            beq rle_end
-            bpl rle_runlength
-rle_singles
-            eor #$ff
-            clc
-            adc #2
-            sta {ZP_B0}
-            tay
-            dey
-
-            sec
-            lda {ZP_W1}
-            sbc #1
-            sta {ZP_W1}
-            lda {ZP_W1}+1
-            sbc #0
-            sta {ZP_W1}+1
-
-rle_singles_loop
-            lda ({ZP_W0}),y
-            sta ({ZP_W1}),y
-
-            dey
-            bne rle_singles_loop
-
-            clc
-            lda {ZP_W0}
-            adc {ZP_B0}
-            sta {ZP_W0}
-            lda {ZP_W0}+1
-            adc #0
-            sta {ZP_W0}+1
-
-            jmp rle_advance_output
-
-rle_runlength
-            sta {ZP_B0}
-
-            iny             ; a = byte
-            lda ({ZP_W0}),y
-
-            ldy {ZP_B0}
-rle_runlength_loop
-            dey
-            sta ({ZP_W1}),y
-            bne rle_runlength_loop
-
-            clc
-            lda {ZP_W0}
-            adc #2
-            sta {ZP_W0}
-            lda {ZP_W0}+1
-            adc #0
-            sta {ZP_W0}+1
-
-rle_advance_output
-            clc
-            lda {ZP_W1}
-            adc {ZP_B0}
-            sta {ZP_W1}
-            lda {ZP_W1}+1
-            adc #0
-            sta {ZP_W1}+1
-
-            jmp rle_next
-rle_end
-            clc
-            lda {ZP_W0}
-            adc #1
-            sta {ZP_W0}
-            lda {ZP_W0}+1
-            adc #0
-            sta {ZP_W0}+1
-            rts
-        END ASM
     END SUB
 
     SUB Import(BitmapAddr AS WORD, ScreenMemAddr AS WORD, ColorMemAddr AS WORD) STATIC

@@ -88,3 +88,87 @@ y_tbl_init_tail_loop
         bne y_tbl_init_tail_loop
     END ASM
 END SUB
+
+SUB ImportRle(SrcAddr AS WORD, DstAddr AS WORD) SHARED STATIC
+    ZP_W0 = SrcAddr
+    ZP_W1 = DstAddr
+    ASM
+rle_next
+        ldy #0          ; ZP_B0 = runlength
+        lda ({ZP_W0}),y
+        beq rle_end
+        bpl rle_runlength
+rle_singles
+        eor #$ff
+        clc
+        adc #2
+        sta {ZP_B0}
+        tay
+        dey
+
+        sec
+        lda {ZP_W1}
+        sbc #1
+        sta {ZP_W1}
+        lda {ZP_W1}+1
+        sbc #0
+        sta {ZP_W1}+1
+
+rle_singles_loop
+        lda ({ZP_W0}),y
+        sta ({ZP_W1}),y
+
+        dey
+        bne rle_singles_loop
+
+        clc
+        lda {ZP_W0}
+        adc {ZP_B0}
+        sta {ZP_W0}
+        lda {ZP_W0}+1
+        adc #0
+        sta {ZP_W0}+1
+
+        jmp rle_advance_output
+
+rle_runlength
+        sta {ZP_B0}
+
+        iny             ; a = byte
+        lda ({ZP_W0}),y
+
+        ldy {ZP_B0}
+rle_runlength_loop
+        dey
+        sta ({ZP_W1}),y
+        bne rle_runlength_loop
+
+        clc
+        lda {ZP_W0}
+        adc #2
+        sta {ZP_W0}
+        lda {ZP_W0}+1
+        adc #0
+        sta {ZP_W0}+1
+
+rle_advance_output
+        clc
+        lda {ZP_W1}
+        adc {ZP_B0}
+        sta {ZP_W1}
+        lda {ZP_W1}+1
+        adc #0
+        sta {ZP_W1}+1
+
+        jmp rle_next
+rle_end
+        clc
+        lda {ZP_W0}
+        adc #1
+        sta {ZP_W0}
+        lda {ZP_W0}+1
+        adc #0
+        sta {ZP_W0}+1
+    END ASM
+END SUB
+

@@ -369,9 +369,9 @@ END SUB
 
 GOTO THE_END
 
-_RotX:
+'_RotX:
 'INCLUDE "x_rotation_table.bas"
-_RotY:
+'_RotY:
 'INCLUDE "y_rotation_table.bas"
 
 _pixel_mask:

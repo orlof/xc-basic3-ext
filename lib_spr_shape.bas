@@ -103,3 +103,12 @@ SUB SprShapeFlipY(SrcFramePtr AS BYTE, DstFramePtr AS BYTE) SHARED STATIC
     NEXT t
 END SUB
 
+SUB SprShape_Plot(FramePtr AS BYTE, x AS BYTE, y AS BYTE, Mode AS BYTE) SHARED STATIC
+    ZP_W0 = spr_vic_bank_addr + SHL(CWORD(FramePtr), 6)
+    ZP_W0 = ZP_W0 + 3 * y + SHR(x, 3)
+    IF Mode THEN
+        POKE ZP_W0, PEEK(ZP_W0) OR SHR(128, x AND 7)
+    ELSE
+        POKE ZP_W0, PEEK(ZP_W0) AND (SHR(128, x AND 7) XOR $ff)
+    END IF
+END SUB

@@ -82,6 +82,24 @@ FUNCTION PetsciiToScreenCode AS BYTE(Petscii AS STRING * 1) SHARED STATIC OVERLO
     RETURN PetsciiToScreenCode(ASC(Petscii))
 END FUNCTION
 
+DIM StringBuilder AS STRING * 24 SHARED
+SUB StringBuilder_Clear(Size AS BYTE) SHARED STATIC
+    POKE @StringBuilder, Size
+    MEMSET @StringBuilder + 1, Size, 32
+END SUB
+
+SUB StringBuilder_Left(Pos AS BYTE, Text AS STRING * 24) SHARED STATIC
+    MEMCPY @Text + 1, @StringBuilder + Pos + 1, PEEK(@Text)
+END SUB
+
+SUB StringBuilder_Right(Pos AS BYTE, Text AS STRING * 24) SHARED STATIC OVERLOAD
+    CALL StringBuilder_Left(Pos + 1 - LEN(Text), Text)
+END SUB
+
+SUB StringBuilder_Right(Pos AS BYTE, Text AS WORD) SHARED STATIC OVERLOAD
+    CALL StringBuilder_Right(Pos, STR$(Text))
+END SUB
+
 GOTO THE_END
 
 _PETSCII_TO_SCREENCODE:

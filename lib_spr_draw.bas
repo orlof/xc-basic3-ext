@@ -117,6 +117,10 @@ SUB SprDraw_UpdateDirty(MaxNumUpdates AS BYTE) SHARED STATIC
     _next_spr_nr = 0
 END SUB
 
+SUB SprDraw_FlipFrame(SprNr AS BYTE) SHARED STATIC
+    SprFrame(SprNr) = SprFrame(SprNr) XOR 1
+END SUB
+
 SUB SprDraw_Clear(SprNr AS BYTE) SHARED STATIC
     SprFrame(SprNr) = SprFrame(SprNr) XOR 1
     CALL SprClearFrame(SprFrame(SprNr))

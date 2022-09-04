@@ -73,6 +73,7 @@ REM NOTE If you need collision detection, you MUST ALWAYS use this method to
 REM set sprite position!
 REM ****************************************************************************
 DECLARE SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
+DECLARE SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Set TRUE/FALSE property for all prites. Works in both modes.

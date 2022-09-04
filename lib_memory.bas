@@ -20,8 +20,10 @@ DIM SHARED ZP_B3 AS BYTE FAST
 CONST TRASH_LO = $00
 CONST TRASH_HI = $de
 
-DIM bitmap_y_tbl_hi(256) AS BYTE SHARED
-DIM bitmap_y_tbl_lo(256) AS BYTE SHARED
+DIM SHARED bitmap_y_tbl_hi(256) AS BYTE
+DIM SHARED bitmap_y_tbl_lo(256) AS BYTE
+
+DIM SHARED bit_shift_left(8) AS BYTE @_bit_shift_left
 
 SUB InitYTables(bitmap_addr AS WORD) SHARED STATIC
     ASM
@@ -172,3 +174,9 @@ rle_end
     END ASM
 END SUB
 
+GOTO THE_END
+
+_bit_shift_left:
+DATA AS BYTE 1,2,4,8,16,32,64,128
+
+THE_END:

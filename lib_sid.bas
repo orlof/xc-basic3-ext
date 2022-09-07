@@ -1,4 +1,3 @@
-'INCLUDE "lib_hex.bas"
 'INCLUDE "lib_irq.bas"
 
 TYPE SidInfo
@@ -7,14 +6,6 @@ TYPE SidInfo
     Base AS WORD
     Length AS WORD
     Tunes AS WORD
-
-    SUB Debug() STATIC
-        PRINT "init", hex(THIS.Init)
-        PRINT "play", hex(THIS.Play)
-        PRINT "base", hex(THIS.Base)
-        PRINT "length", THIS.Length
-        PRINT "tunes", THIS.Tunes
-    END SUB
 
     SUB Import(StartAddr AS WORD, EndAddr AS WORD) STATIC
         POKE @THIS.Init, PEEK(StartAddr + $0b)

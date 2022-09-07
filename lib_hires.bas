@@ -128,7 +128,45 @@ TYPE ScreenHires
     END SUB
 
     SUB ColorBlock(x AS BYTE, y AS BYTE, Color0 AS BYTE, Color1 AS BYTE) STATIC
-        POKE THIS.scr_mem_addr + 40 * y + x, SHL(Color0, 4) OR Color1
+        ZP_W1 = THIS.scr_mem_addr
+        ASM
+            lda #0
+            sta {ZP_W0}+1
+            lda {y}
+            ldy #5
+color_block_loop_x32        
+            asl
+            rol {ZP_W0}+1
+            dey
+            bne color_block_loop_x32
+            sta {ZP_W0}
+
+            lda {y}
+            asl
+            asl
+            asl
+
+            clc
+            adc {x}
+            tay
+
+            clc
+            lda {ZP_W0}
+            adc {ZP_W1}
+            sta {ZP_W1}
+            lda {ZP_W0}+1
+            adc {ZP_W1}+1
+            sta {ZP_W1}+1
+
+            lda {Color0}
+            asl
+            asl
+            asl
+            asl
+            ora {Color1}
+            sta ({ZP_W1}),y
+        END ASM
+        'POKE THIS.scr_mem_addr + 40 * CWORD(y) + x, SHL(Color0, 4) OR Color1
     END SUB
 
     SUB Area(x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE, Pattern AS BYTE) STATIC

@@ -32,8 +32,8 @@ DIM sprite_line_dx AS BYTE FAST
 DIM sprite_line_dy AS BYTE FAST
 DIM sprite_line_err AS BYTE FAST
 
-DIM RotX(256) AS BYTE @ _RotX SHARED
-DIM RotY(256) AS BYTE @ _RotY SHARED
+'DIM RotX(256) AS BYTE @ _RotX SHARED
+'DIM RotY(256) AS BYTE @ _RotY SHARED
 
 DIM pixel_mask(24) AS BYTE @_pixel_mask
 
@@ -376,10 +376,10 @@ END SUB
 
 GOTO THE_END
 
-_RotX:
-INCLUDE "ext/x_rotation_table.bas"
-_RotY:
-INCLUDE "ext/y_rotation_table.bas"
+'_RotX:
+'INCLUDE "ext/x_rotation_table.bas"
+'_RotY:
+'INCLUDE "ext/y_rotation_table.bas"
 
 _pixel_mask:
 DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01

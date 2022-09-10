@@ -35,7 +35,7 @@ REM NOTE Both modes intialise a raster interrupt that updates sprite data
 REM      from cache arrays to IO registers during off-screen. Update is
 REM      triggered with SprUpdate.
 REM ****************************************************************************
-DECLARE SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE) SHARED STATIC
+DECLARE SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Commit all changes from cache arrays to IO registers.
@@ -192,12 +192,12 @@ SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
     MEMSET @SprPriority, MAX_NUM_SPRITES, Value
 END SUB
 
-SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE) SHARED STATIC
+SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
     spr_vic_bank_ptr = VicBankPtr
     spr_vic_bank_addr = 16384 * CWORD(VicBankPtr)
 
     spr_num_sprites = Mode
-    spr_ptrs = spr_vic_bank_addr + SHL(CWORD(PEEK($d018) AND %11110000), 6) + 1016
+    spr_ptrs = spr_vic_bank_addr + SHL(CWORD(ScreenMemPtr), 10) + 1016
 
     FOR ZP_B0 = 0 TO spr_num_sprites-1
         spr_x(ZP_B0) = 0

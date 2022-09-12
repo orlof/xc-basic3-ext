@@ -81,7 +81,7 @@ y_tbl_init_loop
 y_tbl_init_tail
         ldy #200
 y_tbl_init_tail_loop
-        lda #$de
+        lda #$04
         sta {bitmap_y_tbl_hi},y
         lda #$00
         sta {bitmap_y_tbl_lo},y

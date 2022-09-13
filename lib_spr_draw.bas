@@ -22,7 +22,7 @@ REM INTERNAL FIELDS
 REM **************************************
 DIM _angle(MAX_NUM_SPRITES) AS BYTE
 DIM _geometry_addr(MAX_NUM_SPRITES) AS WORD
-DIM _dirty(MAX_NUM_SPRITES) AS BYTE
+DIM _dirty(MAX_NUM_SPRITES) AS BYTE SHARED
 
 DIM sprite_line_x1 AS BYTE FAST
 DIM sprite_line_y1 AS BYTE FAST

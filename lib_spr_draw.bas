@@ -22,7 +22,7 @@ REM INTERNAL FIELDS
 REM **************************************
 DIM _angle(MAX_NUM_SPRITES) AS BYTE
 DIM _geometry_addr(MAX_NUM_SPRITES) AS WORD
-DIM _dirty(MAX_NUM_SPRITES) AS BYTE SHARED
+DIM _spr_draw_dirty(MAX_NUM_SPRITES) AS BYTE SHARED
 
 DIM sprite_line_x1 AS BYTE FAST
 DIM sprite_line_y1 AS BYTE FAST
@@ -54,7 +54,7 @@ SUB SprDraw_Init() SHARED STATIC
     FOR ZP_B0 = 0 TO spr_num_sprites - 1
         _angle(ZP_B0) = 0
         _geometry_addr(ZP_B0) = 0
-        _dirty(ZP_B0) = FALSE
+        _spr_draw_dirty(ZP_B0) = FALSE
     NEXT
 END SUB
 
@@ -88,19 +88,19 @@ SUB SprDraw_SetAngle(SprNr AS BYTE, Angle AS BYTE) SHARED STATIC
     ZP_B0 = Angle AND %11111000
     IF ZP_B0 <> _angle(SprNr) THEN
         _angle(SprNr) = ZP_B0
-        _dirty(SprNr) = TRUE
+        _spr_draw_dirty(SprNr) = TRUE
     END IF
 END SUB
 
 SUB SprDraw_SetGeometry(SprNr AS BYTE, GeometryAddr AS WORD) SHARED STATIC
     IF GeometryAddr <> _geometry_addr(SprNr) THEN
         _geometry_addr(SprNr) = GeometryAddr
-        _dirty(SprNr) = TRUE
+        _spr_draw_dirty(SprNr) = TRUE
     END IF
 END SUB
 
 SUB SprDraw_SetDirty(SprNr AS BYTE) SHARED STATIC
-    _dirty(SprNr) = TRUE
+    _spr_draw_dirty(SprNr) = TRUE
 END SUB
 
 DIM _next_spr_nr AS BYTE
@@ -109,7 +109,7 @@ SUB SprDraw_UpdateDirty(MaxNumUpdates AS BYTE) SHARED STATIC
     DIM _start_spr_nr AS BYTE
         _start_spr_nr = _next_spr_nr
     DO
-        IF _dirty(_next_spr_nr) THEN
+        IF _spr_draw_dirty(_next_spr_nr) THEN
             CALL SprDraw_UpdateSprite(_next_spr_nr) 
             MaxNumUpdates = MaxNumUpdates - 1
         END IF
@@ -135,7 +135,7 @@ SUB SprDraw_UpdateSprite(SprNr AS BYTE) SHARED STATIC OVERLOAD
 
     CALL SprClearFrame(ZP_B0)
     CALL SprDraw_DrawGeometry(ZP_B0, _geometry_addr(SprNr), _angle(SprNr))
-    _dirty(SprNr) = FALSE
+    _spr_draw_dirty(SprNr) = FALSE
 
     SprBoundingBoxLeft(SprNr) = SHR(_bounding_box_left, 1)
     SprBoundingBoxRight(SprNr) = SHR(_bounding_box_right, 1)

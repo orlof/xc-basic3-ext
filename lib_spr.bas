@@ -93,7 +93,7 @@ REM FOR t AS BYTE = 1 TO 7
 REM     PRINT t, SprCollision(t)
 REM NEXT t
 REM ****************************************************************************
-DECLARE SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
+DECLARE FUNCTION SprRecordCollisions AS BYTE(SprNr AS BYTE) SHARED STATIC
 
 REM **************************************
 REM PUBLIC FIELDS
@@ -327,8 +327,11 @@ spr_xy_no_bad_zone:
     END ASM
 END SUB
 
-SUB SprRecordCollisions(SprNr AS BYTE) SHARED STATIC
+FUNCTION SprRecordCollisions AS BYTE(SprNr AS BYTE) SHARED STATIC
     ASM
+        lda #0
+        sta {SprRecordCollisions}
+
         ldy {SprNr}
         ldx {spr_num_sprites}
         dex
@@ -410,6 +413,9 @@ spr_collision_true:
 spr_collision_false:
         lda #$00
         sta {SprCollision},x
+
+        ora {SprRecordCollisions}
+        sta {SprRecordCollisions}
 
         dex                                 ; Goes to next sprite
         bpl spr_collision_loop

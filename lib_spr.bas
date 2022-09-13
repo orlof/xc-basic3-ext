@@ -424,7 +424,7 @@ spr_collision_end:
         lda #0
         sta {SprCollision},y
     END ASM
-END SUB
+END FUNCTION
 
 REM **************************************
 REM Spritemultiplexer adaptation

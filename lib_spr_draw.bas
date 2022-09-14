@@ -37,10 +37,10 @@ DIM sprite_line_err AS BYTE FAST
 
 DIM pixel_mask(24) AS BYTE @_pixel_mask
 
-DIM _bounding_box_left AS BYTE
-DIM _bounding_box_right AS BYTE
-DIM _bounding_box_top AS BYTE
-DIM _bounding_box_bottom AS BYTE
+DIM _bb_x0 AS BYTE
+DIM _bb_x1 AS BYTE
+DIM _bb_y0 AS BYTE
+DIM _bb_y1 AS BYTE
 
 SHARED CONST END_SHAPE  = $10
 SHARED CONST NO_DRAW    = $20
@@ -137,10 +137,31 @@ SUB SprDraw_UpdateSprite(SprNr AS BYTE) SHARED STATIC OVERLOAD
     CALL SprDraw_DrawGeometry(ZP_B0, _geometry_addr(SprNr), _angle(SprNr))
     _spr_draw_dirty(SprNr) = FALSE
 
-    SprBoundingBoxLeft(SprNr) = SHR(_bounding_box_left, 1)
-    SprBoundingBoxRight(SprNr) = SHR(_bounding_box_right, 1)
-    SprBoundingBoxTop(SprNr) = _bounding_box_top
-    SprBoundingBoxBottom(SprNr) = _bounding_box_bottom
+    ASM
+        ldx {SprNr}
+        
+        sec
+        lda #12
+        sbc {_bb_x0}
+        lsr
+        sta {SprBoundingBoxLeft},x
+
+        sec
+        lda {_bb_x1}
+        sbc #12
+        lsr
+        sta {SprBoundingBoxRight},x
+
+        sec
+        lda #10
+        sbc {_bb_y0}
+        sta {SprBoundingBoxTop},x
+
+        sec
+        lda {_bb_y1}
+        sbc #10
+        sta {SprBoundingBoxBottom},x
+    END ASM
 END SUB
 
 SUB SprDraw_UpdateSprite(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC OVERLOAD
@@ -204,10 +225,10 @@ SUB SprDraw_DrawGeometry(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) 
     DIM Index AS BYTE
     DIM Draw AS BYTE
 
-    _bounding_box_left = 23
-    _bounding_box_right = 0
-    _bounding_box_top = 20
-    _bounding_box_bottom = 0
+    _bb_x0 = 23
+    _bb_x1 = 0
+    _bb_y0 = 20
+    _bb_y1 = 0
 
     Draw = $00
     DO UNTIL 0
@@ -230,23 +251,23 @@ SUB SprDraw_DrawGeometry(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) 
         ASM
 bb_left:
             lda {sprite_line_x2}
-            cmp {_bounding_box_left}
+            cmp {_bb_x0}
             bcs bb_right                ;if x2 >= left then bb_right
-            sta {_bounding_box_left}
+            sta {_bb_x0}
 bb_right:
-            cmp {_bounding_box_right}
+            cmp {_bb_x1}
             bcc bb_top                  ;if x2 < right then bb_top
-            sta {_bounding_box_right}
+            sta {_bb_x1}
 
 bb_top:
             lda {sprite_line_y2}
-            cmp {_bounding_box_top}
+            cmp {_bb_y0}
             bcs bb_bottom               ;if y2 >= top then bb_bottom
-            sta {_bounding_box_top}
+            sta {_bb_y0}
 bb_bottom:
-            cmp {_bounding_box_bottom}
+            cmp {_bb_y1}
             bcc bb_end                  ;if y2 < bottom then bb_end
-            sta {_bounding_box_bottom}
+            sta {_bb_y1}
 bb_end:
         END ASM
 

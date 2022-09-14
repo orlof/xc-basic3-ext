@@ -49,12 +49,6 @@ REM ****************************************************************************
 DECLARE SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
-REM Enable/disable individual sprites
-REM ****************************************************************************
-DECLARE SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-DECLARE FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-
-REM ****************************************************************************
 REM CALL SprXY(0, 0, 0)
 REM ****************************************************************************
 REM Set sprite's top left corner to screen pixel (x, y).
@@ -73,14 +67,12 @@ REM NOTE If you need collision detection, you MUST ALWAYS use this method to
 REM set sprite position!
 REM ****************************************************************************
 DECLARE SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
-DECLARE SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
+'DECLARE SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Set TRUE/FALSE property for all prites. Works in both modes.
 REM ****************************************************************************
-DECLARE SUB SprEnableAll(Value AS BYTE) SHARED STATIC
-DECLARE SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
-DECLARE SUB SprDoubleYAll(Value AS BYTE) SHARED STATIC
+DECLARE SUB SprDisable() SHARED STATIC
 DECLARE SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
 DECLARE SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
 
@@ -127,11 +119,8 @@ DIM SHARED SprBoundingBoxBottom(MAX_NUM_SPRITES) AS BYTE
 REM ****************************************************************************
 REM SPR_MODE_8 ONLY - R/W individual TRUE/FALSE sprite properties
 REM ****************************************************************************
-DIM SHARED SprDoubleX(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprDoubleY(MAX_NUM_SPRITES) AS BYTE
 DIM SHARED SprMultiColor(MAX_NUM_SPRITES) AS BYTE
 DIM SHARED SprPriority(MAX_NUM_SPRITES) AS BYTE
-
 
 REM ****************************************************************************
 REM  INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL 
@@ -154,9 +143,8 @@ DIM spr_reg_dy AS BYTE @$d017
 DIM spr_reg_bg AS BYTE @$d01b
 
 DIM spr_x(MAX_NUM_SPRITES) AS BYTE
-DIM spr_y(MAX_NUM_SPRITES) AS BYTE
-DIM spr_yy(MAX_NUM_SPRITES) AS BYTE 
-DIM spr_e(MAX_NUM_SPRITES) AS BYTE
+DIM spr_y(MAX_NUM_SPRITES) AS BYTE SHARED
+'DIM SprEnable(MAX_NUM_SPRITES) AS BYTE SHARED
 
 REM FAST variables for sprite multiplexing
 DIM sprupdateflag AS BYTE FAST
@@ -166,20 +154,19 @@ DIM sprirqcounter AS BYTE FAST
 
 DIM sortorder(MAX_NUM_SPRITES) AS BYTE FAST
 
-SUB SprEnableAll(Value AS BYTE) SHARED STATIC
-    FOR ZP_B0 = 0 to spr_num_sprites - 1
-        CALL SprEnable(ZP_B0, Value)
-    NEXT
-END SUB
+SUB SprDisable() SHARED STATIC
+    ASM
+        lda #$ff
+        ldx {spr_num_sprites}
 
-SUB SprDoubleXAll(Value AS BYTE) SHARED STATIC
-    spr_reg_dx = Value
-    MEMSET @SprDoubleX, MAX_NUM_SPRITES, Value
-END SUB
+spr_enable_all_loop
+        dex
+        bmi spr_enable_all_end
+        sta {spr_y},x
+        jmp spr_enable_all_loop
 
-SUB SprDoubleYAll(Value AS BYTE) SHARED STATIC
-    spr_reg_dy = Value
-    MEMSET @SprDoubleY, MAX_NUM_SPRITES, Value
+spr_enable_all_end
+    END ASM
 END SUB
 
 SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
@@ -193,29 +180,72 @@ SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
 END SUB
 
 SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
-    spr_vic_bank_ptr = VicBankPtr
-    spr_vic_bank_addr = 16384 * CWORD(VicBankPtr)
+    ASM
+        ;spr_num_sprites = Mode
+        lda {Mode}
+        sta {spr_num_sprites}
 
-    spr_num_sprites = Mode
-    spr_ptrs = spr_vic_bank_addr + SHL(CWORD(ScreenMemPtr), 10) + 1016
+        ;spr_vic_bank_ptr = VicBankPtr
+        lda {VicBankPtr}
+        sta {spr_vic_bank_ptr}
 
-    FOR ZP_B0 = 0 TO spr_num_sprites-1
-        spr_x(ZP_B0) = 0
-        spr_y(ZP_B0) = 255
-        spr_yy(ZP_B0) = 255
-        spr_e(ZP_B0) = 0
+        ;spr_vic_bank_addr = 16384 * CWORD(VicBankPtr)
+        lda #0
+        sta {spr_vic_bank_addr}
+        ;sta {ZP_W0}
+        ;sta {ZP_W1}
+        ;sta {ZP_W2}
 
-        SprColor(ZP_B0) = 1
-        SprBoundingBoxLeft(ZP_B0) = 0
-        SprBoundingBoxRight(ZP_B0) = 12
-        SprBoundingBoxTop(ZP_B0) = 0
-        SprBoundingBoxBottom(ZP_B0) = 21
-        SprCollision(ZP_B0) = 0
-        SprDoubleX(ZP_B0) = 0
-        SprDoubleY(ZP_B0) = 0
-        SprMultiColor(ZP_B0) = 0
-        SprPriority(ZP_B0) = 0
-    NEXT ZP_B0
+        lda {VicBankPtr}        ;16384 * CWORD(VicBankPtr)
+        lsr
+        ror
+        ror
+        sta {spr_vic_bank_addr}+1
+
+        ; spr_ptrs = spr_vic_bank_addr + SHL(CWORD(ScreenMemPtr), 10) + 1016
+        lda {ScreenMemPtr}      ;vic_bank_addr + 1024 * ScreenMemPtr
+        asl
+        asl
+
+        clc
+        adc {spr_vic_bank_addr}+1
+        adc #3
+        sta {spr_ptrs}+1
+        lda #$f8
+        sta {spr_ptrs}
+
+        ;-----------------------------
+        ;init sprite properties
+        ldx {spr_num_sprites}
+
+spr_init_loop
+        dex
+        bmi spr_init_end
+
+        lda #0
+        sta {spr_x},x
+        ;sta {SprEnable},x
+        sta {SprBoundingBoxLeft},x
+        sta {SprBoundingBoxTop},x
+        sta {SprCollision},x
+        sta {SprMultiColor},x
+        sta {SprPriority},x
+
+        lda #1
+        sta {SprColor},x
+
+        lda #12
+        sta {SprBoundingBoxRight},x
+
+        lda #21
+        sta {SprBoundingBoxBottom},x
+
+        lda #255
+        sta {spr_y},x
+
+        jmp spr_init_loop
+spr_init_end
+    END ASM
 
     IF spr_num_sprites < 9 THEN
         CALL spr_mode8_init()
@@ -224,12 +254,12 @@ SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATI
     END IF
 END SUB
 
-SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
-    SprBoundingBoxLeft(SprNr) = SHR(Left, 1)
-    SprBoundingBoxRight(SprNr) = SHR(Right, 1)
-    SprBoundingBoxTop(SprNr) = Top
-    SprBoundingBoxBottom(SprNr) = Bottom
-END SUB
+'SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
+'    SprBoundingBoxLeft(SprNr) = SHR(Left, 1)
+'    SprBoundingBoxRight(SprNr) = SHR(Right, 1)
+'    SprBoundingBoxTop(SprNr) = Top
+'    SprBoundingBoxBottom(SprNr) = Bottom
+'END SUB
 
 SUB SprStop() SHARED STATIC
     CALL IrqSpr(0)
@@ -239,82 +269,22 @@ SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
     MEMSET spr_vic_bank_addr + SHL(CWORD(FramePtr), 6), 63, 0
 END SUB
 
-SUB SprEnable(SprNr AS BYTE, Value AS BYTE) SHARED STATIC OVERLOAD
-    IF Value THEN 
-        IF spr_e(SprNr) = 0 THEN
-            spr_y(SprNr) = spr_yy(SprNr)
-            spr_e(SprNr) = $ff
-        END IF
-    ELSE
-        IF spr_e(SprNr) = $ff THEN
-            spr_y(SprNr) = $ff
-            spr_e(SprNr) = $00
-        END IF
-    END IF
-END SUB
-
-FUNCTION SprEnable AS BYTE(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    RETURN spr_e(SprNr)
-END FUNCTION
-
-SUB SprDxDy(SprNr AS BYTE, dx AS BYTE, dy AS BYTE) SHARED STATIC
-    ASM
-        ldx {SprNr}
-
-        clc                     ; spr_reg_xy(SprNr).y = y + 50
-        lda {spr_yy},x
-        adc {dy}
-        sta {spr_yy},x          ; spr_y(SprNr) = y + 50
-        
-        ldy {spr_e},x
-        beq spr_dxdy_x
-
-        sta {spr_y},x
-
-spr_dxdy_x:
-        CLC                     ; preserve sign bit
-        LDA {dx}
-        BPL spr_dxdy_positive
-        SEC
-spr_dxdy_positive:
-        ROR
-
-        clc
-        adc {spr_x},x
-
-        cmp #252
-        bcc spr_dxdy_no_bad_zone
-
-        sec                     ; THEN x -= 8
-        sbc #4
-
-spr_dxdy_no_bad_zone:
-        sta {spr_x},x
-    END ASM
-END SUB
-
 SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
     ASM
         ldx {SprNr}
 
         clc                     ; spr_reg_xy(SprNr).y = y + 50
         lda {y}
-        adc #50
-        sta {spr_yy},x           ; spr_y(SprNr) = y + 50
-        
-        ldy {spr_e},x
-        beq sprxy_x
-
+        adc #40
         sta {spr_y},x
 
 sprxy_x:
-        lda {x}+1
-        lsr
+        lsr {x}+1
         lda {x}
         ror
 
         clc
-        adc #12
+        adc #6
         
         cmp #252
         bcc spr_xy_no_bad_zone
@@ -335,9 +305,11 @@ FUNCTION SprRecordCollisions AS BYTE(SprNr AS BYTE) SHARED STATIC
         ldy {SprNr}
         ldx {spr_num_sprites}
         dex
-        lda {spr_e},y
+        lda {spr_y},y
+        cmp #$ff
         bne spr_collision_loop
 
+        lda #0
 spr_collision_disabled_loop:
         sta {SprCollision},x
         dex
@@ -346,63 +318,54 @@ spr_collision_disabled_loop:
         jmp spr_collision_end
 
 spr_collision_loop:
-        lda {spr_e},x
+        lda {spr_y},x
+        cmp #$ff
         beq spr_collision_false
 
 spr_collision_check_y:
         sec
-        lda {spr_y},x                       ; Load Enemy Y position
+        ;lda {spr_y},x                       ; Load Enemy Y position
         sbc {spr_y},y                       ; Subtract Player Y position
-        bcs spr_collision_dy_positive       ; enemy_x >= player_x
+        bcs spr_collision_enemy_is_lower    ; enemy_y >= player_y
         eor #$ff                            ; Negate result
         adc #1                              ; carry must be clear
                                             ; - absolute distance from top-left to top-left is in a
                                             ; - player is right from enemy
-spr_collision_dy_negative:
-        clc
-        adc {SprBoundingBoxTop},y
-        bcs spr_collision_false
-
+spr_collision_enemy_is_higher
         sec
         sbc {SprBoundingBoxBottom},x
+        bcc spr_collision_check_x
+        sbc {SprBoundingBoxTop},y
         bcs spr_collision_false
+        bcc spr_collision_check_x
 
-        jmp spr_collision_check_x
-
-spr_collision_dy_positive:
-        clc
-        adc {SprBoundingBoxTop},x
-        bcs spr_collision_false
-
+spr_collision_enemy_is_lower
         sec
+        sbc {SprBoundingBoxTop},x
+        bcc spr_collision_check_x
         sbc {SprBoundingBoxBottom},y
         bcs spr_collision_false
 
-spr_collision_check_x:
+spr_collision_check_x
         sec
-        lda {spr_x},x                       ; Compare x coordinates
-        sbc {spr_x},y                       ; Subtract Player X position
-        bcs spr_collision_dx_positive
+        lda {spr_x},x                       ; Enemy X coordinate
+        sbc {spr_x},y                       ; Player X coordinate
+        bcs spr_collision_enemy_is_right
         eor #$ff                            ; Negate result
         adc #1
 
-spr_collision_dx_negative:
-        clc
-        adc {SprBoundingBoxLeft},y
-        bcs spr_collision_false
-
+spr_collision_enemy_is_left
         sec
         sbc {SprBoundingBoxRight},x
+        bcc spr_collision_true
+        sbc {SprBoundingBoxLeft},y
         bcs spr_collision_false
+        bcc spr_collision_true
 
-        jmp spr_collision_true
-
-spr_collision_dx_positive:
-        clc
-        adc {SprBoundingBoxLeft},x
-        bcs spr_collision_false
-
+spr_collision_enemy_is_right
         sec
+        sbc {SprBoundingBoxLeft},x
+        bcc spr_collision_true
         sbc {SprBoundingBoxRight},y
         bcs spr_collision_false
 
@@ -437,11 +400,13 @@ REM **************************************
 
 SUB SprUpdate(Blocking AS BYTE) SHARED STATIC
     ASM
-                inc {sprupdateflag}              ;Signal to IRQ: sort the
-                lda {blocking}                   ;sprites
+waitloop1:      lda {sprupdateflag}         ;Wait until the flag turns back
+                bne waitloop1               ;to zero
+                inc {sprupdateflag}         ;Signal to IRQ: sort the
+                lda {blocking}              ;sprites
                 beq non_blocking
-waitloop:       lda {sprupdateflag}             ;Wait until the flag turns back
-                bne waitloop                    ;to zero
+waitloop2:      lda {sprupdateflag}         ;Wait until the flag turns back
+                bne waitloop2               ;to zero
 non_blocking:
     END ASM
 END SUB
@@ -487,17 +452,9 @@ mode8_irq_loop:
 mode8_irq_sprf:
         sta {spr_ptrs},y
 
-        lda {spr_e},y
-        rol
-        rol $d015
-
-        lda {SprDoubleX},y
-        rol
-        rol $d01d
-
-        lda {SprDoubleY},y
-        rol
-        rol $d017
+        ;lda {SprEnable},y
+        ;rol
+        ;rol $d015
 
         lda {SprMultiColor},y
         rol
@@ -645,7 +602,7 @@ irq2_direct:    ldy {sprirqcounter}             ;Take next sorted sprite number
                 clc
                 adc #$10                        ;16 lines down from there is
                 bcc irq2_notover                ;the endpoint for this IRQ
-                lda #$ff                        ;Endpoint can�t be more than $ff
+                lda #$ff                        ;Endpoint cant be more than $ff
 irq2_notover:   sta {tempvariable}
 irq2_spriteloop:lda sortspry,y
                 cmp {tempvariable}              ;End of this IRQ?

@@ -1,21 +1,24 @@
+
+INCLUDE "../lib_color.bas"
+INCLUDE "../lib_types.bas"
 INCLUDE "../lib_memory.bas"
+INCLUDE "../lib_char.bas"
+INCLUDE "../lib_irq.bas"
 INCLUDE "../lib_scr.bas"
 INCLUDE "../lib_spr.bas"
 INCLUDE "../lib_spr_shape.bas"
 INCLUDE "../lib_joy.bas"
-INCLUDE "../lib_types.bas"
 INCLUDE "../lib_random.bas"
 
 RANDOMIZE TI()
 
-CALL SprInit(SPR_MODE_16)
+CALL SprInit(SPR_MODE_16, 0, 1)
 CALL SprShapeImport(@SPRITE_BLOCK, 255)
 
 FOR t AS BYTE = 0 TO 15
     SprColor(t) = t AND 3
     SprFrame(t) = 255
     CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
-    CALL SprEnable(t, TRUE)
 NEXT t
 
 DIM x AS INT
@@ -23,19 +26,18 @@ DIM x AS INT
 DIM y AS INT
     y = (200-21) / 2
 
-CALL scr_clear()
-
 game_loop:
-    IF joy1_up() THEN 
+    CALL Joy1.Update()
+    IF joy1.North() THEN 
         y = y - 1
     END IF
-    IF joy1_down() THEN 
+    IF joy1.South() THEN 
         y = y + 1
     END IF
-    IF joy1_right() THEN 
+    IF joy1.East() THEN 
         x = x + 1
     END IF
-    IF joy1_left() THEN 
+    IF joy1.West() THEN 
         x = x - 1
     END IF
     
@@ -45,12 +47,13 @@ game_loop:
     PRINT x;"    "
     PRINT y;"    "
 
-    CALL SprRecordCollisions(0)
-    FOR t AS BYTE = 0 TO 15
-        IF SprCollision(t) THEN
-            CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
-        END IF
-    NEXT t
+    IF SprRecordCollisions(0) THEN
+        FOR t AS BYTE = 0 TO 15
+            IF SprCollision(t) THEN
+                CALL SprXY(t, random_word(0, 320-48), random(0, 200-42))
+            END IF
+        NEXT t
+    END IF
 
     CALL SprUpdate(TRUE)
     GOTO game_loop

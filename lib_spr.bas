@@ -247,19 +247,12 @@ spr_init_loop
 spr_init_end
     END ASM
 
-    IF spr_num_sprites < 9 THEN
+    IF Mode = SPR_MODE_8 THEN
         CALL spr_mode8_init()
     ELSE
         CALL spr_mode16_init()
     END IF
 END SUB
-
-'SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
-'    SprBoundingBoxLeft(SprNr) = SHR(Left, 1)
-'    SprBoundingBoxRight(SprNr) = SHR(Right, 1)
-'    SprBoundingBoxTop(SprNr) = Top
-'    SprBoundingBoxBottom(SprNr) = Bottom
-'END SUB
 
 SUB SprStop() SHARED STATIC
     CALL IrqSpr(0)

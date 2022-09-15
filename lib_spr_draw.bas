@@ -4,24 +4,22 @@
 'INCLUDE "lib_spr.bas"
 
 DECLARE SUB SprDraw_Init() SHARED STATIC
-DECLARE SUB SprDraw_PrepareGeometry(GeometryAddr AS WORD) SHARED STATIC
 
 DECLARE SUB SprDraw_SetAngle(SprNr AS BYTE, Angle AS BYTE) SHARED STATIC
 DECLARE SUB SprDraw_SetGeometry(SprNr AS BYTE, GeometryAddr AS WORD) SHARED STATIC
 DECLARE SUB SprDraw_SetDirty(SprNr AS BYTE) SHARED STATIC
-DECLARE SUB SprDraw_UpdateDirty(MaxNumUpdates AS BYTE) SHARED STATIC
+DECLARE SUB SprDraw_UpdateDirty() SHARED STATIC
 
 DECLARE SUB SprDraw_UpdateSprite(SprNr AS BYTE) SHARED STATIC OVERLOAD
 DECLARE SUB SprDraw_UpdateSprite(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC OVERLOAD
-DECLARE SUB SprDraw_DrawGeometry(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-DECLARE SUB SprDraw_DrawLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
-DECLARE SUB _DrawLine() STATIC
+DECLARE SUB SprDraw_DrawGeometry(SprNR AS BYTE, FramePtr AS BYTE) SHARED STATIC
 
 REM **************************************
 REM INTERNAL FIELDS
 REM **************************************
 DIM _angle(MAX_NUM_SPRITES) AS BYTE
-DIM _geometry_addr(MAX_NUM_SPRITES) AS WORD
+DIM _geometry_addr_hi(MAX_NUM_SPRITES) AS BYTE
+DIM _geometry_addr_lo(MAX_NUM_SPRITES) AS BYTE
 DIM _spr_draw_dirty(MAX_NUM_SPRITES) AS BYTE SHARED
 
 DIM sprite_line_x1 AS BYTE FAST
@@ -51,94 +49,122 @@ REM ****************************************************************************
 REM Call before using the library
 REM ****************************************************************************
 SUB SprDraw_Init() SHARED STATIC
-    FOR ZP_B0 = 0 TO spr_num_sprites - 1
-        _angle(ZP_B0) = 0
-        _geometry_addr(ZP_B0) = 0
-        _spr_draw_dirty(ZP_B0) = FALSE
-    NEXT
-END SUB
+    ASM
+        lda #0
+        ldx {spr_num_sprites}
+sprdraw_init_loop
+        dex
+        bmi sprdraw_init_end
 
-REM Convert human friendly data to packet polyline format.
-REM Data has a byte pair for each Point. First byte represents the Angle
-REM (0-31) and second byte represents Radial (0-7). 
-REM
-REM Packet data overwrites the human friendly data and requires 1/2 memory.
-REM This assures that you can use the same label pointers for ShapePrepare
-REM and ShapeDrawGeometry
-REM 
-REM Special Values
-REM   NO_DRAW  DATA AS WORD $0400
-REM   END      DATA AS WORD $0200
-REM   0,0      DATA AS BYTE 0, 0
-SUB SprDraw_PrepareGeometry(GeometryAddr AS WORD) SHARED STATIC
-    ZP_W0 = 0   ' offset
-    DO
-        DIM Angular AS BYTE
-        Angular = PEEK(GeometryAddr + ZP_W0)
+        sta {_angle},x
+        sta {_spr_draw_dirty},x
+        sta {_geometry_addr_hi},x
+        sta {_geometry_addr_lo},x
 
-        DIM Radial AS BYTE
-        Radial = PEEK(GeometryAddr + ZP_W0 + 1)
-
-        POKE GeometryAddr + SHR(ZP_W0, 1), SHL(Angular, 3) OR Radial
-        ZP_W0 = ZP_W0 + 2
-    LOOP UNTIL Angular = 2 AND Radial = 0
+        jmp sprdraw_init_loop
+sprdraw_init_end
+    END ASM
 END SUB
 
 SUB SprDraw_SetAngle(SprNr AS BYTE, Angle AS BYTE) SHARED STATIC
-    ZP_B0 = Angle AND %11111000
-    IF ZP_B0 <> _angle(SprNr) THEN
-        _angle(SprNr) = ZP_B0
-        _spr_draw_dirty(SprNr) = TRUE
-    END IF
+    ASM
+        ldx {SprNr}
+
+        lda {Angle}
+        and #%11111000
+        cmp {_angle},x
+        beq sprdraw_setangle_end
+
+        sta {_angle},x
+        lda #$ff
+        sta {_spr_draw_dirty},x
+sprdraw_setangle_end        
+    END ASM
 END SUB
 
 SUB SprDraw_SetGeometry(SprNr AS BYTE, GeometryAddr AS WORD) SHARED STATIC
-    IF GeometryAddr <> _geometry_addr(SprNr) THEN
-        _geometry_addr(SprNr) = GeometryAddr
-        _spr_draw_dirty(SprNr) = TRUE
-    END IF
+    ASM
+        ldx {SprNr}
+
+        lda {GeometryAddr}
+        cmp {_geometry_addr_lo},x
+        bne sprdraw_setgeometry_changed
+
+        lda {GeometryAddr}+1
+        cmp {_geometry_addr_hi},x
+        beq sprdraw_setgeometry_end
+
+sprdraw_setgeometry_changed
+        lda {GeometryAddr}+1
+        sta {_geometry_addr_hi},x
+        lda {GeometryAddr}
+        sta {_geometry_addr_lo},x
+        lda #$ff
+        sta {_spr_draw_dirty},x
+sprdraw_setgeometry_end        
+    END ASM
 END SUB
 
 SUB SprDraw_SetDirty(SprNr AS BYTE) SHARED STATIC
-    _spr_draw_dirty(SprNr) = TRUE
+    ASM
+        ldx {SprNr}
+        lda #$ff
+        sta {_spr_draw_dirty},x
+    END ASM
 END SUB
 
-DIM _next_spr_nr AS BYTE
-    _next_spr_nr = 0
-SUB SprDraw_UpdateDirty(MaxNumUpdates AS BYTE) SHARED STATIC
-    DIM _start_spr_nr AS BYTE
-        _start_spr_nr = _next_spr_nr
-    DO
-        IF _spr_draw_dirty(_next_spr_nr) THEN
-            CALL SprDraw_UpdateSprite(_next_spr_nr) 
-            MaxNumUpdates = MaxNumUpdates - 1
-        END IF
+SUB SprDraw_UpdateDirty() SHARED STATIC
+    ASM
+        ldx {spr_num_sprites}
+sprdraw_updatedirty_loop
+        dex
+        bpl sprdraw_updatedirty_continue
+        rts
 
-        _next_spr_nr = _next_spr_nr + 1
-        IF _next_spr_nr = spr_num_sprites THEN _next_spr_nr = 0 
-    LOOP UNTIL _next_spr_nr = _start_spr_nr OR MaxNumUpdates = 0
-    _next_spr_nr = 0
+sprdraw_updatedirty_continue
+        lda {_spr_draw_dirty},x
+        beq sprdraw_updatedirty_loop
+        stx {ZP_B0}
+    END ASM
+    CALL SprDraw_UpdateSprite(ZP_B0)
 END SUB
 
 SUB SprDraw_FlipFrame(SprNr AS BYTE) SHARED STATIC
-    SprFrame(SprNr) = SprFrame(SprNr) XOR 1
+    ASM
+        ldx {SprNr}
+        lda {SprFrame},x
+        eor #1
+        sta {SprFrame},x
+    END ASM
 END SUB
 
 SUB SprDraw_Clear(SprNr AS BYTE) SHARED STATIC
-    SprFrame(SprNr) = SprFrame(SprNr) XOR 1
+    ASM
+        ldx {SprNr}
+        lda {SprFrame},x
+        eor #1
+        sta {SprFrame},x
+    END ASM
     CALL SprClearFrame(SprFrame(SprNr))
 END SUB
 
 SUB SprDraw_UpdateSprite(SprNr AS BYTE) SHARED STATIC OVERLOAD
-    ZP_B0 = SprFrame(SprNr) XOR 1
-    SprFrame(SprNr) = ZP_B0
+    ASM
+        ;swap buffer
+        ldx {SprNr}
+        lda {SprFrame},x
+        eor #1
+        sta {SprFrame},x
+        sta {ZP_B0}
+    END ASM
 
     CALL SprClearFrame(ZP_B0)
-    CALL SprDraw_DrawGeometry(ZP_B0, _geometry_addr(SprNr), _angle(SprNr))
-    _spr_draw_dirty(SprNr) = FALSE
+    CALL SprDraw_DrawGeometry(SprNr, ZP_B0)
 
     ASM
         ldx {SprNr}
+        lda #0
+        sta {_spr_draw_dirty},x
         
         sec
         lda #12
@@ -165,8 +191,17 @@ SUB SprDraw_UpdateSprite(SprNr AS BYTE) SHARED STATIC OVERLOAD
 END SUB
 
 SUB SprDraw_UpdateSprite(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC OVERLOAD
-    _geometry_addr(SprNr) = GeometryAddr
-    _angle(SprNr) = Angle
+    ASM
+        ldx {SprNr}
+        lda {Angle}
+        and #%11111000
+        sta {_angle},x
+        lda {GeometryAddr}
+        sta {_geometry_addr_lo},x
+        lda {GeometryAddr}+1
+        sta {_geometry_addr_hi},x
+    END ASM
+
     CALL SprDraw_UpdateSprite(SprNr)
 END SUB
 
@@ -218,11 +253,7 @@ REM
 REM Special Values occupy unused Angles in Radial 0 circle and thus center point
 REM must always be addressed with 0, 0 - even thou in theory all angles with
 REM Radial 0 represent same point (center). 
-SUB SprDraw_DrawGeometry(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHARED STATIC
-    ZP_W0 = spr_vic_bank_addr + SHL(CWORD(FramePtr), 6)
-    Angle = Angle AND %11111000
-
-    DIM Index AS BYTE
+SUB SprDraw_DrawGeometry(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC
     DIM Draw AS BYTE
 
     _bb_x0 = 23
@@ -230,25 +261,76 @@ SUB SprDraw_DrawGeometry(FramePtr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) 
     _bb_y0 = 20
     _bb_y1 = 0
 
-    Draw = $00
-    DO UNTIL 0
-        Index = PEEK(GeometryAddr)
-        GeometryAddr = GeometryAddr + 1
-        IF Index = END_SHAPE THEN EXIT DO
-        IF Index = NO_DRAW THEN
-            Draw = $00
-            Index = PEEK(GeometryAddr)
-            GeometryAddr = GeometryAddr + 1
-        END IF
+    ASM
+        ;ZP_W0 = spr_vic_bank_addr + SHL(CWORD(FramePtr), 6)
+        sta $408
+        lda #0
+        sta {ZP_W0} ; $19
+        sta {Draw}
+        tay
 
-        sprite_line_x1 = sprite_line_x2
-        sprite_line_y1 = sprite_line_y2
+        lda {FramePtr}
+        lsr
+        ror {ZP_W0}
+        lsr
+        ror {ZP_W0}
 
-        Index = Index + Angle
-        sprite_line_x2 = RotX(Index)
-        sprite_line_y2 = RotY(Index)
+        clc
+        adc {spr_vic_bank_addr}+1
+        sta {ZP_W0}+1
 
-        ASM
+        ldx {SprNr}
+        lda {_geometry_addr_lo},x
+        sta {ZP_W1}
+        lda {_geometry_addr_hi},x
+        sta {ZP_W1}+1
+
+sprdraw_drawgeometry_loop
+            ;Index = PEEK(GeometryAddr)
+            lda ({ZP_W1}),y ;4de1
+            ;GeometryAddr = GeometryAddr + 1
+            iny
+            ;IF Index = END_SHAPE THEN EXIT DO
+            cmp #$10
+            bne sprdraw_continue
+            jmp sprdraw_end
+            ;rts
+sprdraw_continue
+            ;IF Index = NO_DRAW THEN
+            cmp #$20
+            bne sprdraw_noskip
+
+            ;Draw = $00
+            lda #0
+            sta {Draw}
+            ;Index = PEEK(GeometryAddr)
+            lda ({ZP_W1}),y
+            ;GeometryAddr = GeometryAddr + 1
+            iny
+
+sprdraw_noskip
+            sty {FramePtr}
+
+            ;Index = Index + Angle
+            ldx {SprNr}
+            clc
+            adc {_angle},x
+            tax
+
+            ;sprite_line_x1 = sprite_line_x2
+            ;sprite_line_y1 = sprite_line_y2
+            lda {sprite_line_x2}
+            sta {sprite_line_x1}
+            lda {sprite_line_y2}
+            sta {sprite_line_y1}
+
+            ;sprite_line_x2 = RotX(Index)
+            ;sprite_line_y2 = RotY(Index)
+            lda {RotX},x
+            sta {sprite_line_x2}
+            lda {RotY},x
+            sta {sprite_line_y2}
+
 bb_left:
             lda {sprite_line_x2}
             cmp {_bb_x0}
@@ -269,24 +351,15 @@ bb_bottom:
             bcc bb_end                  ;if y2 < bottom then bb_end
             sta {_bb_y1}
 bb_end:
-        END ASM
+            lda {Draw}
+            beq sprdraw_skip_drawline
+            jsr shape_draw_line
+sprdraw_skip_drawline
+            lda #$ff
+            sta {Draw}
+            ldy {FramePtr}
+            jmp sprdraw_drawgeometry_loop
 
-        IF Draw THEN CALL _DrawLine()
-        Draw = $ff
-    LOOP
-END SUB
-
-SUB SprDraw_DrawLine(FramePtr AS BYTE, x0 AS BYTE, y0 AS BYTE, x1 AS BYTE, y1 AS BYTE) SHARED STATIC
-    ZP_W0 = spr_vic_bank_addr + SHL(CWORD(FramePtr), 6)
-    sprite_line_x1 = x0
-    sprite_line_y1 = y0
-    sprite_line_x2 = x1
-    sprite_line_y2 = y1
-    CALL _DrawLine()
-END SUB
-
-SUB _DrawLine() STATIC
-    ASM
 shape_draw_line:
         ldx #$c6                ; calc dy, sy
         lda {sprite_line_y1}
@@ -392,6 +465,8 @@ sprite_line_commit_sy
 
 sprite_line_no_dy
         jmp sprite_line_loop
+
+sprdraw_end
     END ASM
 END SUB
 

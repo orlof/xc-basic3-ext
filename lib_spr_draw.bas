@@ -113,6 +113,14 @@ SUB SprDraw_SetDirty(SprNr AS BYTE) SHARED STATIC
     END ASM
 END SUB
 
+SUB SprDraw_SetClean(SprNr AS BYTE) SHARED STATIC
+    ASM
+        ldx {SprNr}
+        lda #$00
+        sta {_spr_draw_dirty},x
+    END ASM
+END SUB
+
 SUB SprDraw_UpdateDirty() SHARED STATIC
     ASM
         ldx {spr_num_sprites}
@@ -170,23 +178,23 @@ SUB SprDraw_UpdateSprite(SprNr AS BYTE) SHARED STATIC OVERLOAD
         lda #12
         sbc {_bb_x0}
         lsr
-        sta {SprBoundingBoxLeft},x
+        sta {Spr_EdgeWest},x
 
         sec
         lda {_bb_x1}
         sbc #12
         lsr
-        sta {SprBoundingBoxRight},x
+        sta {Spr_EdgeEast},x
 
         sec
         lda #10
         sbc {_bb_y0}
-        sta {SprBoundingBoxTop},x
+        sta {Spr_EdgeNorth},x
 
         sec
         lda {_bb_y1}
         sbc #10
-        sta {SprBoundingBoxBottom},x
+        sta {Spr_EdgeSouth},x
     END ASM
 END SUB
 

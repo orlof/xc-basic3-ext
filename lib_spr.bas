@@ -8,13 +8,6 @@ REM You must also update MAXSPR in ASM code
 REM **************************************
 SHARED CONST MAX_NUM_SPRITES = 16
 
-REM **************************************
-REM Modes for SprInit(Mode)
-REM You must also update MAXSPR in ASM code
-REM **************************************
-SHARED CONST SPR_MODE_8 = 8
-SHARED CONST SPR_MODE_16 = 16
-
 REM ****************************************************************************
 REM Initialise Sprite System
 REM 
@@ -35,7 +28,7 @@ REM NOTE Both modes intialise a raster interrupt that updates sprite data
 REM      from cache arrays to IO registers during off-screen. Update is
 REM      triggered with SprUpdate.
 REM ****************************************************************************
-DECLARE SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
+DECLARE SUB SprInit(VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Commit all changes from cache arrays to IO registers.
@@ -73,8 +66,8 @@ REM ****************************************************************************
 REM Set TRUE/FALSE property for all prites. Works in both modes.
 REM ****************************************************************************
 DECLARE SUB SprDisable() SHARED STATIC
-DECLARE SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
-DECLARE SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
+DECLARE SUB SprPriority(Value AS BYTE) SHARED STATIC
+DECLARE SUB SprMultiColor(Value AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Update SprCollision array with TRUE/FALSE values to identify which
@@ -111,22 +104,10 @@ DIM SHARED SprColor(MAX_NUM_SPRITES) AS BYTE
 DIM SHARED SprFrame(MAX_NUM_SPRITES) AS BYTE
 
 REM Collision Detection
-DIM SHARED SprBoundingBoxLeft(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprBoundingBoxRight(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprBoundingBoxTop(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprBoundingBoxBottom(MAX_NUM_SPRITES) AS BYTE
-
-REM ****************************************************************************
-REM SPR_MODE_8 ONLY - R/W individual TRUE/FALSE sprite properties
-REM ****************************************************************************
-DIM SHARED SprMultiColor(MAX_NUM_SPRITES) AS BYTE
-DIM SHARED SprPriority(MAX_NUM_SPRITES) AS BYTE
-
-REM ****************************************************************************
-REM  INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL - INTERNAL 
-REM ****************************************************************************
-DECLARE SUB spr_mode8_init() STATIC
-DECLARE SUB spr_mode16_init() STATIC
+DIM SHARED Spr_EdgeWest(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED Spr_EdgeEast(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED Spr_EdgeNorth(MAX_NUM_SPRITES) AS BYTE
+DIM SHARED Spr_EdgeSouth(MAX_NUM_SPRITES) AS BYTE
 
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
@@ -144,7 +125,6 @@ DIM spr_reg_bg AS BYTE @$d01b
 
 DIM spr_x(MAX_NUM_SPRITES) AS BYTE
 DIM spr_y(MAX_NUM_SPRITES) AS BYTE SHARED
-'DIM SprEnable(MAX_NUM_SPRITES) AS BYTE SHARED
 
 REM FAST variables for sprite multiplexing
 DIM sprupdateflag AS BYTE FAST
@@ -169,22 +149,16 @@ spr_enable_all_end
     END ASM
 END SUB
 
-SUB SprMultiColorAll(Value AS BYTE) SHARED STATIC
+SUB SprMultiColor(Value AS BYTE) SHARED STATIC
     spr_reg_mc = Value
-    MEMSET @SprMultiColor, MAX_NUM_SPRITES, Value
 END SUB
 
-SUB SprPriorityAll(Value AS BYTE) SHARED STATIC
+SUB SprPriority(Value AS BYTE) SHARED STATIC
     spr_reg_bg = Value
-    MEMSET @SprPriority, MAX_NUM_SPRITES, Value
 END SUB
 
-SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
+SUB SprInit(VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
     ASM
-        ;spr_num_sprites = Mode
-        lda {Mode}
-        sta {spr_num_sprites}
-
         ;spr_vic_bank_ptr = VicBankPtr
         lda {VicBankPtr}
         sta {spr_vic_bank_ptr}
@@ -192,9 +166,6 @@ SUB SprInit(Mode AS BYTE, VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATI
         ;spr_vic_bank_addr = 16384 * CWORD(VicBankPtr)
         lda #0
         sta {spr_vic_bank_addr}
-        ;sta {ZP_W0}
-        ;sta {ZP_W1}
-        ;sta {ZP_W2}
 
         lda {VicBankPtr}        ;16384 * CWORD(VicBankPtr)
         lsr
@@ -224,21 +195,18 @@ spr_init_loop
 
         lda #0
         sta {spr_x},x
-        ;sta {SprEnable},x
-        sta {SprBoundingBoxLeft},x
-        sta {SprBoundingBoxTop},x
+        sta {Spr_EdgeWest},x
+        sta {Spr_EdgeNorth},x
         sta {SprCollision},x
-        sta {SprMultiColor},x
-        sta {SprPriority},x
 
         lda #1
         sta {SprColor},x
 
         lda #12
-        sta {SprBoundingBoxRight},x
+        sta {Spr_EdgeEast},x
 
         lda #21
-        sta {SprBoundingBoxBottom},x
+        sta {Spr_EdgeSouth},x
 
         lda #255
         sta {spr_y},x
@@ -247,242 +215,23 @@ spr_init_loop
 spr_init_end
     END ASM
 
-    IF Mode = SPR_MODE_8 THEN
-        CALL spr_mode8_init()
-    ELSE
-        CALL spr_mode16_init()
-    END IF
-END SUB
-
-SUB SprStop() SHARED STATIC
-    CALL IrqSpr(0)
-END SUB
-
-SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
-    MEMSET spr_vic_bank_addr + SHL(CWORD(FramePtr), 6), 63, 0
-END SUB
-
-SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
-    ASM
-        ldx {SprNr}
-
-        clc                     ; spr_reg_xy(SprNr).y = y + 50
-        lda {y}
-        adc #40
-        sta {spr_y},x
-
-sprxy_x:
-        lsr {x}+1
-        lda {x}
-        ror
-
-        clc
-        adc #6
-        
-        cmp #252
-        bcc spr_xy_no_bad_zone
-
-        sec                     ; THEN x -= 8
-        sbc #4
-
-spr_xy_no_bad_zone:
-        sta {spr_x},x
-    END ASM
-END SUB
-
-FUNCTION SprRecordCollisions AS BYTE(SprNr AS BYTE) SHARED STATIC
-    ASM
-        lda #0
-        sta {SprRecordCollisions}
-
-        ldy {SprNr}
-        ldx {spr_num_sprites}
-        dex
-        lda {spr_y},y
-        cmp #$ff
-        bne spr_collision_loop
-
-        lda #0
-spr_collision_disabled_loop:
-        sta {SprCollision},x
-        dex
-        bpl spr_collision_disabled_loop
-
-        jmp spr_collision_end
-
-spr_collision_loop:
-        lda {spr_y},x
-        cmp #$ff
-        beq spr_collision_false
-
-spr_collision_check_y:
-        sec
-        ;lda {spr_y},x                       ; Load Enemy Y position
-        sbc {spr_y},y                       ; Subtract Player Y position
-        bcs spr_collision_enemy_is_lower    ; enemy_y >= player_y
-        eor #$ff                            ; Negate result
-        adc #1                              ; carry must be clear
-                                            ; - absolute distance from top-left to top-left is in a
-                                            ; - player is right from enemy
-spr_collision_enemy_is_higher
-        sec
-        sbc {SprBoundingBoxBottom},x
-        bcc spr_collision_check_x
-        sbc {SprBoundingBoxTop},y
-        bcs spr_collision_false
-        bcc spr_collision_check_x
-
-spr_collision_enemy_is_lower
-        sec
-        sbc {SprBoundingBoxTop},x
-        bcc spr_collision_check_x
-        sbc {SprBoundingBoxBottom},y
-        bcs spr_collision_false
-
-spr_collision_check_x
-        sec
-        lda {spr_x},x                       ; Enemy X coordinate
-        sbc {spr_x},y                       ; Player X coordinate
-        bcs spr_collision_enemy_is_right
-        eor #$ff                            ; Negate result
-        adc #1
-
-spr_collision_enemy_is_left
-        sec
-        sbc {SprBoundingBoxRight},x
-        bcc spr_collision_true
-        sbc {SprBoundingBoxLeft},y
-        bcs spr_collision_false
-        bcc spr_collision_true
-
-spr_collision_enemy_is_right
-        sec
-        sbc {SprBoundingBoxLeft},x
-        bcc spr_collision_true
-        sbc {SprBoundingBoxRight},y
-        bcs spr_collision_false
-
-spr_collision_true:
-        lda #$ff
-        dc.b $2c                            ; BIT instruction that skips next LDA
-
-spr_collision_false:
-        lda #$00
-        sta {SprCollision},x
-
-        ora {SprRecordCollisions}
-        sta {SprRecordCollisions}
-
-        dex                                 ; Goes to next sprite
-        bpl spr_collision_loop
-
-spr_collision_end:
-        lda #0
-        sta {SprCollision},y
-    END ASM
-END FUNCTION
-
-REM **************************************
-REM Spritemultiplexer adaptation
-REM 
-REM Based on:
-REM Spritemultiplexing example V2.1
-REM by Lasse Öörni (loorni@gmail.com)
-REM Available at http://cadaver.github.io
-REM **************************************
-
-SUB SprUpdate(Blocking AS BYTE) SHARED STATIC
-    ASM
-waitloop1:      lda {sprupdateflag}         ;Wait until the flag turns back
-                bne waitloop1               ;to zero
-                inc {sprupdateflag}         ;Signal to IRQ: sort the
-                lda {blocking}              ;sprites
-                beq non_blocking
-waitloop2:      lda {sprupdateflag}         ;Wait until the flag turns back
-                bne waitloop2               ;to zero
-non_blocking:
-    END ASM
-END SUB
-
-SUB spr_mode8_init() STATIC
-    ASM
-        lda {spr_ptrs}
-        sta mode8_irq_sprf+1
-        lda {spr_ptrs}+1
-        sta mode8_irq_sprf+2
-
-        lda #<mode8_irq
-        sta {ZP_W0}
-        lda #>mode8_irq
-        sta {ZP_W0}+1
-
-        jmp mode8_end
-;-----------------------------------
-mode8_irq:
-;-----------------------------------
-        ;inc $d020
-        lda {sprupdateflag}                 ;Update sprite properties
-        beq mode8_irq_exit
-        lda #$00
-        sta {sprupdateflag}
-
-        ;inc $d020                          ; debug
-        ldy #7
-        ldx #14
-mode8_irq_loop:
-        lda {spr_x},y
-        asl
-        sta $d000,x
-        rol $d010
-
-        lda {spr_y},y
-        sta $d001,x
-
-        lda {SprColor},y
-        sta $d027,y
-
-        lda {SprFrame},y
-mode8_irq_sprf:
-        sta {spr_ptrs},y
-
-        ;lda {SprEnable},y
-        ;rol
-        ;rol $d015
-
-        lda {SprMultiColor},y
-        rol
-        rol $d01c
-
-        lda {SprPriority},y
-        rol
-        rol $d01b
-
-        dex
-        dex
-        dey
-        bpl mode8_irq_loop
-        ;dec $d020                       ; debug
-
-mode8_irq_exit:
-        jmp ({irq_spr_return_addr})
-;-----------------------------------
-mode8_end:
-;-----------------------------------
-    END ASM
-    CALL IrqSpr(ZP_W0)
-END SUB
-
-SUB spr_mode16_init() STATIC
-    sortedsprites = 0
-    sprupdateflag = 0
-    FOR t AS BYTE = 0 TO spr_num_sprites-1
-        sortorder(t) = t
-    NEXT t
-
     ASM
 MAXSPR          = 16                            ;Maximum number of sprites
 IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
+        lda #0
+        sta {sortedsprites}
+        sta {sprupdateflag}
 
+        ldx {spr_num_sprites}
+spr_mode16_init_loop
+        dex
+        bmi spr_mode16_init_loop_break
+
+        txa
+        sta {sortorder},x
+        jmp spr_mode16_init_loop
+
+spr_mode16_init_loop_break
         lda {spr_ptrs}
         sta irq2_sprf+1
         lda {spr_ptrs}+1
@@ -695,4 +444,154 @@ ortbl:          dc.b 1
 mode16_end:
     END ASM
     CALL IrqSpr(ZP_W0)
+END SUB
+
+SUB SprStop() SHARED STATIC
+    CALL IrqSpr(0)
+END SUB
+
+SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
+    MEMSET spr_vic_bank_addr + SHL(CWORD(FramePtr), 6), 63, 0
+END SUB
+
+SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
+    ASM
+        ldx {SprNr}
+
+        clc                     ; spr_reg_xy(SprNr).y = y + 50
+        lda {y}
+        adc #40
+        sta {spr_y},x
+
+sprxy_x:
+        lsr {x}+1
+        lda {x}
+        ror
+
+        clc
+        adc #6
+        
+        cmp #252
+        bcc spr_xy_no_bad_zone
+
+        sec                     ; THEN x -= 8
+        sbc #4
+
+spr_xy_no_bad_zone:
+        sta {spr_x},x
+    END ASM
+END SUB
+
+FUNCTION SprRecordCollisions AS BYTE(SprNr AS BYTE) SHARED STATIC
+    ASM
+        lda #0
+        sta {SprRecordCollisions}
+
+        ldy {SprNr}
+        ldx {spr_num_sprites}
+        dex
+        lda {spr_y},y
+        cmp #$ff
+        bne spr_collision_loop
+
+        lda #0
+spr_collision_disabled_loop:
+        sta {SprCollision},x
+        dex
+        bpl spr_collision_disabled_loop
+
+        jmp spr_collision_end
+
+spr_collision_loop:
+        lda {spr_y},x
+        cmp #$ff
+        beq spr_collision_false
+
+spr_collision_check_y:
+        sec
+        ;lda {spr_y},x                       ; Load Enemy Y position
+        sbc {spr_y},y                       ; Subtract Player Y position
+        bcs spr_collision_enemy_is_lower    ; enemy_y >= player_y
+        eor #$ff                            ; Negate result
+        adc #1                              ; carry must be clear
+                                            ; - absolute distance from top-left to top-left is in a
+                                            ; - player is right from enemy
+spr_collision_enemy_is_higher
+        sec
+        sbc {Spr_EdgeSouth},x
+        bcc spr_collision_check_x
+        sbc {Spr_EdgeNorth},y
+        bcs spr_collision_false
+        bcc spr_collision_check_x
+
+spr_collision_enemy_is_lower
+        sec
+        sbc {Spr_EdgeNorth},x
+        bcc spr_collision_check_x
+        sbc {Spr_EdgeSouth},y
+        bcs spr_collision_false
+
+spr_collision_check_x
+        sec
+        lda {spr_x},x                       ; Enemy X coordinate
+        sbc {spr_x},y                       ; Player X coordinate
+        bcs spr_collision_enemy_is_right
+        eor #$ff                            ; Negate result
+        adc #1
+
+spr_collision_enemy_is_left
+        sec
+        sbc {Spr_EdgeEast},x
+        bcc spr_collision_true
+        sbc {Spr_EdgeWest},y
+        bcs spr_collision_false
+        bcc spr_collision_true
+
+spr_collision_enemy_is_right
+        sec
+        sbc {Spr_EdgeWest},x
+        bcc spr_collision_true
+        sbc {Spr_EdgeEast},y
+        bcs spr_collision_false
+
+spr_collision_true:
+        lda #$ff
+        dc.b $2c                            ; BIT instruction that skips next LDA
+
+spr_collision_false:
+        lda #$00
+        sta {SprCollision},x
+
+        ora {SprRecordCollisions}
+        sta {SprRecordCollisions}
+
+        dex                                 ; Goes to next sprite
+        bpl spr_collision_loop
+
+spr_collision_end:
+        lda #0
+        sta {SprCollision},y
+    END ASM
+END FUNCTION
+
+REM **************************************
+REM Spritemultiplexer adaptation
+REM 
+REM Based on:
+REM Spritemultiplexing example V2.1
+REM by Lasse Öörni (loorni@gmail.com)
+REM Available at http://cadaver.github.io
+REM **************************************
+
+SUB SprUpdate(Blocking AS BYTE) SHARED STATIC
+    ASM
+waitloop1:      lda {sprupdateflag}         ;Wait until the flag turns back
+                bne waitloop1               ;to zero
+                inc {sprupdateflag}         ;Signal to IRQ: sort the
+                lda {blocking}              ;sprites
+                beq non_blocking
+waitloop2:      lda {sprupdateflag}         ;Wait until the flag turns back
+                bne waitloop2               ;to zero
+non_blocking:
+    END ASM
 END SUB

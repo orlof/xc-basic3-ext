@@ -271,7 +271,6 @@ SUB SprDraw_DrawGeometry(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC
 
     ASM
         ;ZP_W0 = spr_vic_bank_addr + SHL(CWORD(FramePtr), 6)
-        sta $408
         lda #0
         sta {ZP_W0} ; $19
         sta {Draw}

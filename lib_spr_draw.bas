@@ -51,7 +51,7 @@ REM ****************************************************************************
 SUB SprDraw_Init() SHARED STATIC
     ASM
         lda #0
-        ldx {spr_num_sprites}
+        ldx #MAXSPR
 sprdraw_init_loop
         dex
         bmi sprdraw_init_end
@@ -123,7 +123,7 @@ END SUB
 
 SUB SprDraw_UpdateDirty() SHARED STATIC
     ASM
-        ldx {spr_num_sprites}
+        ldx #MAXSPR
 sprdraw_updatedirty_loop
         dex
         bpl sprdraw_updatedirty_continue
@@ -214,7 +214,6 @@ SUB SprDraw_UpdateSprite(SprNr AS BYTE, GeometryAddr AS WORD, Angle AS BYTE) SHA
 END SUB
 
 REM Geometry specifies a polyline with a sequence of angular coordinates.
-REM Points in polyline are connected by drawing a line between then.
 REM 
 REM Internal polyline format packs each point to a single byte.
 REM Angle is coded into 5 highest bits and Radial is coded into the
@@ -224,7 +223,7 @@ REM  76543210
 REM %AAAAARRR
 REM 
 REM Radial (point's distance from center) 0-7: 
-REM Value  Distance
+REM Value  Distance (approx)
 REM    0      0 px
 REM    1      2 px
 REM    2      4 px
@@ -258,9 +257,8 @@ REM
 REM NO DRAW  $20  Don't draw line between previous and next points
 REM END      $10  End of shape data
 REM 
-REM Special Values occupy unused Angles in Radial 0 circle and thus center point
-REM must always be addressed with 0, 0 - even thou in theory all angles with
-REM Radial 0 represent same point (center). 
+REM Center point must be addressed with $00 as NO_DRAW and END -special Values 
+REM reserve the unused Angles in Radial 0
 SUB SprDraw_DrawGeometry(SprNr AS BYTE, FramePtr AS BYTE) SHARED STATIC
     DIM Draw AS BYTE
 
@@ -485,8 +483,6 @@ GOTO THE_END
 'INCLUDE "ext/y_rotation_table.bas"
 
 _pixel_mask:
-DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01
-DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01
 DATA AS BYTE $80, $40, $20, $10, $08, $04, $02, $01
 
 THE_END:

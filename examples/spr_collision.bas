@@ -12,7 +12,7 @@ INCLUDE "../lib_random.bas"
 
 RANDOMIZE TI()
 
-CALL SprInit(SPR_MODE_16, 0, 1)
+CALL SprInit(0, 1)
 CALL SprShapeImport(@SPRITE_BLOCK, 255)
 
 FOR t AS BYTE = 0 TO 15

@@ -7,14 +7,15 @@ REM 16 / 24 / 32 (only 16 tested)
 REM You must also update MAXSPR in ASM code
 REM **************************************
 SHARED CONST MAX_NUM_SPRITES = 16
+ASM
+MAXSPR          = 16
+END ASM
 
 REM ****************************************************************************
 REM Initialise Sprite System
 REM 
-REM Must be called AFTER VIC-bank and Screen Memory address are set, 
-REM but BEFORE any other methods are used.
+REM Must be called BEFORE any other methods are used.
 REM 
-REM Mode can be SPR_MODE_8 or SPR_MODE_16.
 REM  - Invidividual sprite's MultiColorMode, Priority, DoubleWidth or
 REM    DoubleHeight can only be set in 8 sprite mode. e.g.
 REM     - SprDoubleX(0) = TRUE
@@ -59,11 +60,13 @@ REM ****************************************************************************
 REM NOTE If you need collision detection, you MUST ALWAYS use this method to 
 REM set sprite position!
 REM ****************************************************************************
-DECLARE SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
+DECLARE SUB SprXY(SprNr AS BYTE, x AS INT, y AS INT) SHARED STATIC
 'DECLARE SUB SprBoundingBox(SprNr AS BYTE, Left AS BYTE, Top AS BYTE, Right AS BYTE, Bottom AS BYTE) SHARED STATIC
 
 REM ****************************************************************************
 REM Set TRUE/FALSE property for all prites. Works in both modes.
+REM There is no SprEnable as sprites are enabled by setting their coordinates
+REM with SprXY()
 REM ****************************************************************************
 DECLARE SUB SprDisable() SHARED STATIC
 DECLARE SUB SprPriority(Value AS BYTE) SHARED STATIC
@@ -112,9 +115,6 @@ DIM SHARED Spr_EdgeSouth(MAX_NUM_SPRITES) AS BYTE
 DIM spr_ptrs AS WORD
     spr_ptrs = 2040
 
-DIM SHARED spr_num_sprites AS BYTE
-    spr_num_sprites = MAX_NUM_SPRITES
-
 DIM SHARED spr_vic_bank_ptr AS BYTE
 DIM SHARED spr_vic_bank_addr AS WORD
 
@@ -123,7 +123,9 @@ DIM spr_reg_dx AS BYTE @$d01d
 DIM spr_reg_dy AS BYTE @$d017
 DIM spr_reg_bg AS BYTE @$d01b
 
-DIM spr_x(MAX_NUM_SPRITES) AS BYTE
+DIM spr_x_coll(MAX_NUM_SPRITES) AS BYTE
+DIM spr_x_lo(MAX_NUM_SPRITES) AS BYTE
+DIM spr_x_hi(MAX_NUM_SPRITES) AS BYTE
 DIM spr_y(MAX_NUM_SPRITES) AS BYTE SHARED
 
 REM FAST variables for sprite multiplexing
@@ -137,7 +139,7 @@ DIM sortorder(MAX_NUM_SPRITES) AS BYTE FAST
 SUB SprDisable() SHARED STATIC
     ASM
         lda #$ff
-        ldx {spr_num_sprites}
+        ldx #MAXSPR
 
 spr_enable_all_loop
         dex
@@ -187,14 +189,16 @@ SUB SprInit(VicBankPtr AS BYTE, ScreenMemPtr AS BYTE) SHARED STATIC
 
         ;-----------------------------
         ;init sprite properties
-        ldx {spr_num_sprites}
+        ldx #MAXSPR
 
 spr_init_loop
         dex
         bmi spr_init_end
 
         lda #0
-        sta {spr_x},x
+        sta {spr_x_lo},x
+        sta {spr_x_hi},x
+        sta {spr_x_coll},x
         sta {Spr_EdgeWest},x
         sta {Spr_EdgeNorth},x
         sta {SprCollision},x
@@ -216,13 +220,12 @@ spr_init_end
     END ASM
 
     ASM
-MAXSPR          = 16                            ;Maximum number of sprites
 IRQ1LINE        = $fc                           ;This is the place on screen where the sorting IRQ happens
         lda #0
         sta {sortedsprites}
         sta {sprupdateflag}
 
-        ldx {spr_num_sprites}
+        ldx #MAXSPR
 spr_mode16_init_loop
         dex
         bmi spr_mode16_init_loop_break
@@ -263,7 +266,7 @@ mode16_irq:
                 beq irq1_nonewsprites
                 lda #$00
                 sta {sprupdateflag}
-                lda {spr_num_sprites}                ;Take number of sprites given by the main program
+                lda #MAXSPR                     ;Take number of sprites given by the main program
                 sta {sortedsprites}             ;If it's zero, don't need to
                 bne irq1_beginsort              ;sort
 
@@ -321,8 +324,10 @@ irq1_sortskip:
 irq1_sortloop3: ldy {sortorder},x               ;Final loop:
                 lda {spr_y},y                    ;Now copy sprite variables to
                 sta sortspry,x                  ;the sorted table
-                lda {spr_x},y
-                sta sortsprx,x
+                lda {spr_x_lo},y
+                sta sortsprxlo,x
+                lda {spr_x_hi},y
+                sta sortsprxhi,x
                 lda {SprFrame},y
                 sta sortsprf,x
                 lda {SprColor},y
@@ -351,14 +356,18 @@ irq2_spriteloop:lda sortspry,y
                 bcs irq2_endspr
                 ldx physicalsprtbl2,y           ;Physical sprite number x 2
                 sta $d001,x                     ;for X & Y coordinate
-                lda sortsprx,y
-                asl
+
+                lda sortsprxlo,y
                 sta $d000,x
-                bcc irq2_lowmsb
+
+                lda sortsprxhi,y
+                beq irq2_lowmsb
+
                 lda $d010
                 ora ortbl,x
                 sta $d010
                 jmp irq2_msbok
+
 irq2_lowmsb:    lda $d010
                 and andtbl,x
                 sta $d010
@@ -390,12 +399,11 @@ irq2_lastspr:   lda {IrqHandler}               ;Was the last sprite,
                 jmp $ea81
 
 
-sortsprx:       ds.b MAXSPR,0                   ;Sorted sprite table
+sortsprxlo:     ds.b MAXSPR,0                   ;Sorted sprite table
+sortsprxhi:     ds.b MAXSPR,0                   ;Sorted sprite table
 sortspry:       ds.b MAXSPR+1,0                 ;Must be one byte extra for the $ff endmark
 sortsprc:       ds.b MAXSPR,0
 sortsprf:       ds.b MAXSPR,0
-sortsprx2:      ds.b MAXSPR,0
-
 
 d015tbl:        dc.b %00000000                  ;Table of sprites that are "on"
                 dc.b %00000001                  ;for $d015
@@ -411,16 +419,8 @@ physicalsprtbl1:dc.b 0,1,2,3,4,5,6,7            ;Indexes to frame & color
                 dc.b 0,1,2,3,4,5,6,7            ;registers
                 dc.b 0,1,2,3,4,5,6,7
                 dc.b 0,1,2,3,4,5,6,7
-                dc.b 0,1,2,3,4,5,6,7
-                dc.b 0,1,2,3,4,5,6,7
-                dc.b 0,1,2,3,4,5,6,7
-                dc.b 0,1,2,3,4,5,6,7
 
 physicalsprtbl2:dc.b 0,2,4,6,8,10,12,14
-                dc.b 0,2,4,6,8,10,12,14
-                dc.b 0,2,4,6,8,10,12,14
-                dc.b 0,2,4,6,8,10,12,14
-                dc.b 0,2,4,6,8,10,12,14
                 dc.b 0,2,4,6,8,10,12,14
                 dc.b 0,2,4,6,8,10,12,14
                 dc.b 0,2,4,6,8,10,12,14
@@ -454,31 +454,62 @@ SUB SprClearFrame(FramePtr AS BYTE) SHARED STATIC
     MEMSET spr_vic_bank_addr + SHL(CWORD(FramePtr), 6), 63, 0
 END SUB
 
-SUB SprXY(SprNr AS BYTE, x AS WORD, y AS BYTE) SHARED STATIC
+SUB SprXY(SprNr AS BYTE, x AS INT, y AS INT) SHARED STATIC
     ASM
         ldx {SprNr}
 
+sprxy_y
         clc                     ; spr_reg_xy(SprNr).y = y + 50
         lda {y}
         adc #40
+        sta {y}
+
+        lda {y}+1
+        adc #0
+        sta {y}+1
+        bne sprxy_oob
+
+        lda {y}
+        ;cmp #30
+        ;bcc sprxy_oob
+
+        ;cmp #200
+        ;bcs sprxy_oob
+
         sta {spr_y},x
 
-sprxy_x:
-        lsr {x}+1
+sprxy_x
+        clc                     ; spr_reg_xy(SprNr).y = y + 50
         lda {x}
+        adc #12
+        sta {spr_x_lo},x
+
+        lda {x}+1
+        adc #0
+        sta {spr_x_hi},x
+
+        beq sprxy_x_ok
+        cmp #1
+        bne sprxy_oob
+
+        lda {spr_x_lo},x
+        cmp #88
+        bcs sprxy_oob
+
+sprxy_x_ok
+        lda {spr_x_hi},x
+        lsr
+        lda {spr_x_lo},x
         ror
+        sta {spr_x_coll},x
 
-        clc
-        adc #6
-        
-        cmp #252
-        bcc spr_xy_no_bad_zone
+        jmp sprxy_end
 
-        sec                     ; THEN x -= 8
-        sbc #4
+sprxy_oob
+        lda #$ff
+        sta {spr_y},x
 
-spr_xy_no_bad_zone:
-        sta {spr_x},x
+sprxy_end
     END ASM
 END SUB
 
@@ -488,7 +519,7 @@ FUNCTION SprRecordCollisions AS BYTE(SprNr AS BYTE) SHARED STATIC
         sta {SprRecordCollisions}
 
         ldy {SprNr}
-        ldx {spr_num_sprites}
+        ldx #MAXSPR
         dex
         lda {spr_y},y
         cmp #$ff
@@ -533,8 +564,8 @@ spr_collision_enemy_is_lower
 
 spr_collision_check_x
         sec
-        lda {spr_x},x                       ; Enemy X coordinate
-        sbc {spr_x},y                       ; Player X coordinate
+        lda {spr_x_coll},x                       ; Enemy X coordinate
+        sbc {spr_x_coll},y                       ; Player X coordinate
         bcs spr_collision_enemy_is_right
         eor #$ff                            ; Negate result
         adc #1
